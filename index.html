@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<meta name="google-site-verification" content="8tmgG-Ej1r4JTD890Kosdi5XOP7l2_XHEX6fDOTzxo4" />
+<meta name="robots" content="index, follow">
+
+<title>Sammy’s Sweets | Luxe Bites</title>
+
+<link rel="icon" href="images/logo.jpeg">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="video-bg">
+  <video autoplay muted loop playsinline>
+    <source src="videos/video1.mp4" type="video/mp4">
+  </video>
+  <div class="overlay"></div>
+</div>
+
+<header>
+  <div class="container header-inner">
+    <div class="brand">
+      <img src="images/logo.jpeg">
+      <div>
+        <h3>Sammy’s Sweets</h3>
+        <span>Luxe Bites</span>
+      </div>
+    </div>
+    <nav>
+      <a href="#menu">Menu</a>
+      <a href="#gallery">Gallery</a>
+      <a href="#videos">Videos</a>
+      <a href="#order" class="btn-nav">Order</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="container hero-grid">
+    <div>
+      <h1>Luxury Dessert Cups</h1>
+      <p>Premium flavours. Elegant presentation. Perfect for events.</p>
+      <a href="#menu" class="btn-main">View Menu</a>
+    </div>
+    <img src="images/image5.jpeg" class="hero-img">
+  </div>
+</section>
+
+<section id="menu" class="section">
+  <div class="container">
+    <h2>Menu & Prices</h2>
+    <div class="menu-grid">
+      <img src="images/main-picture.jpeg" class="menu-img">
+      <div class="menu-box">
+        <div class="menu-item"><span>Black forest dessert</span><b>R20</b></div>
+        <div class="menu-item"><span>Oreo / chocolate mousse</span><b>R25</b></div>
+        <div class="menu-item"><span>Cheesecake (any)</span><b>R25</b></div>
+        <div class="menu-item"><span>Red velvet pudding</span><b>R20</b></div>
+        <div class="menu-item"><span>Peppermint Crisp</span><b>R25</b></div>
+        <div class="menu-item"><span>Lotus Biscoff</span><b>R30</b></div>
+        <div class="menu-item"><span>Malva pudding</span><b>R20</b></div>
+        <div class="menu-rules">
+          Minimum order: 10 desserts<br>
+          50% deposit required<br>
+          Delivery: R100<br>
+          Payments: Contact seller
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="gallery" class="section">
+  <div class="container">
+    <h2>Gallery</h2>
+    <div class="gallery">
+      <img src="images/image1.jpeg">
+      <img src="images/image2.jpeg">
+      <img src="images/image3.jpeg">
+      <img src="images/image4.jpeg">
+      <img src="images/image5.jpeg">
+      <img src="images/image6.jpeg">
+      <img src="images/image7.jpeg">
+      <img src="images/image8.jpeg">
+      <img src="images/image9.jpeg">
+      <img src="images/image10.jpeg">
+    </div>
+  </div>
+</section>
+
+<section id="videos" class="section">
+  <div class="container">
+    <h2>Videos</h2>
+    <div class="videos">
+      <video controls src="videos/video1.mp4"></video>
+      <video controls src="videos/video2.mp4"></video>
+    </div>
+  </div>
+</section>
+
+<section id="order" class="section">
+  <div class="container order-box">
+    <img src="images/logo.jpeg" class="order-logo">
+    <h2>Request an Order</h2>
+    <form id="orderForm">
+      <input id="name" placeholder="Your name" required>
+      <input id="phone" placeholder="Phone number" required>
+      <textarea id="orderText" placeholder="Order details" required></textarea>
+      <select id="delivery">
+        <option>Delivery (R100)</option>
+        <option>Collection</option>
+      </select>
+      <textarea id="notes" placeholder="Extra notes"></textarea>
+      <button type="submit">Send Order</button>
+    </form>
+    <p class="payment-note">Payments: Contact seller for payments</p>
+  </div>
+</section>
+
+<a href="https://wa.me/27832656484" target="_blank" class="whatsapp">
+  💬 WhatsApp
+</a>
+
+<script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>

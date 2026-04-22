@@ -1,0 +1,45 @@
+*{margin:0;padding:0;box-sizing:border-box;font-family:"Poppins",sans-serif}
+body{background:#12081d;color:#fff}
+.container{max-width:1200px;margin:auto;padding:0 20px}
+.section{padding:70px 0}
+
+.video-bg{position:fixed;inset:0;z-index:-2}
+.video-bg video{width:100%;height:100%;object-fit:cover}
+.overlay{position:absolute;inset:0;background:rgba(15,0,30,.75)}
+
+header{position:sticky;top:0;background:rgba(255,255,255,.05);backdrop-filter:blur(10px)}
+.header-inner{display:flex;justify-content:space-between;align-items:center;padding:15px 0}
+.brand{display:flex;align-items:center;gap:10px}
+.brand img{width:45px;border-radius:50%}
+nav a{margin-left:20px;color:#fff;text-decoration:none}
+.btn-nav{background:#7a3eb1;padding:8px 16px;border-radius:20px}
+
+.hero{padding:100px 0}
+.hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center}
+.hero-img{width:100%;border-radius:20px}
+.btn-main{display:inline-block;margin-top:20px;background:#7a3eb1;padding:12px 24px;border-radius:25px;color:#fff;text-decoration:none}
+
+.menu-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.menu-img{width:100%;border-radius:20px}
+.menu-box{background:rgba(255,255,255,.05);padding:20px;border-radius:20px}
+.menu-item{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.1)}
+.menu-rules{margin-top:15px;font-size:14px;opacity:.8}
+
+.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px}
+.gallery img{width:100%;border-radius:15px;height:250px;object-fit:cover}
+
+.videos{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.videos video{width:100%;border-radius:20px;height:380px;object-fit:cover}
+
+.order-box{max-width:600px;margin:auto;text-align:center}
+.order-logo{width:80px;margin-bottom:15px}
+form{display:flex;flex-direction:column;gap:15px;margin-top:20px}
+input,textarea,select{padding:14px;border-radius:15px;border:none}
+button{background:#7a3eb1;color:#fff;padding:14px;border-radius:25px;border:none;cursor:pointer}
+.payment-note{margin-top:15px;opacity:.8}
+
+.whatsapp{position:fixed;bottom:20px;right:20px;background:#25D366;color:#fff;padding:14px 18px;border-radius:30px;text-decoration:none;font-weight:600}
+
+@media(max-width:900px){
+.hero-grid,.menu-grid,.videos{grid-template-columns:1fr}
+}
