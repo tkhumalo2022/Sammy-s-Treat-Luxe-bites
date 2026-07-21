@@ -77,15 +77,26 @@ export function OrderForm() {
     setState('sending')
     setMessage('')
 
-    const itemisedOrder = selectedItems
-      .map((item) => `${item.quantity} × ${item.name} @ R${item.price} = R${item.quantity * item.price}`)
+    const lineItems = selectedItems.map((item) => ({
+      name: item.name,
+      quantity: item.quantity,
+      unitPrice: item.price,
+      lineTotal: item.quantity * item.price,
+    }))
+    const itemisedOrder = lineItems
+      .map((item) => `${item.quantity} × ${item.name} @ R${item.unitPrice} = R${item.lineTotal}`)
       .join('\n')
 
     const order: OrderRequest = {
       name: String(data.get('name') || '').trim(),
       phone: String(data.get('phone') || '').trim(),
       email: String(data.get('email') || '').trim(),
-      order: `${itemisedOrder}\nDessert subtotal: R${subtotal}`,
+      order: `${itemisedOrder}\nDessert subtotal: R${subtotal}\nDelivery: R${deliveryCharge}\nEstimated total: R${estimatedTotal}`,
+      lineItems,
+      itemCount: totalQuantity,
+      subtotal,
+      deliveryFee: deliveryCharge,
+      estimatedTotal,
       fulfilment,
       address: String(data.get('address') || '').trim(),
       eventDate: String(data.get('eventDate') || '').trim(),
@@ -99,7 +110,14 @@ export function OrderForm() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...order,
+          name: order.name,
+          phone: order.phone,
+          email: order.email,
+          items: lineItems.map(({ name, quantity }) => ({ name, quantity })),
+          fulfilment: order.fulfilment,
+          address: order.address,
+          eventDate: order.eventDate,
+          notes: order.notes,
           website: String(data.get('website') || ''),
           acceptedTerms: data.get('acceptedTerms') === 'on',
         }),
@@ -117,7 +135,7 @@ export function OrderForm() {
         setFulfilment('delivery')
         setQuantities(createEmptyQuantities())
         setState('sent')
-        setMessage(`Request ${result.reference || ''} saved securely. Sam can see the itemised order and will send verified payment instructions after confirming availability.`)
+        setMessage(`Request ${result.reference || ''} saved securely. Sam can see every item, total and fulfilment detail in her dashboard.`)
       } else {
         setState('fallback')
         setMessage('Your itemised request is ready. Send it to Sam on WhatsApp to finish checkout.')
@@ -152,12 +170,7 @@ export function OrderForm() {
           {MENU_ITEMS.map((item) => (
             <article className={styles.productCard} key={item.name}>
               <div className={styles.productImage}>
-                <Image
-                  src={item.image}
-                  alt={`${item.name} by Luxe Bites`}
-                  fill
-                  sizes="(max-width: 680px) 110px, 220px"
-                />
+                <Image src={item.image} alt={`${item.name} by Luxe Bites`} fill sizes="(max-width: 680px) 110px, 220px" />
               </div>
               <div className={styles.productBody}>
                 <div className={styles.productName}>
@@ -165,29 +178,9 @@ export function OrderForm() {
                   <strong>R{item.price}</strong>
                 </div>
                 <div className={styles.quantity}>
-                  <button
-                    type="button"
-                    aria-label={`Remove one ${item.name}`}
-                    onClick={() => setQuantity(item.name, quantities[item.name] - 1)}
-                  >
-                    −
-                  </button>
-                  <input
-                    type="number"
-                    min="0"
-                    max="999"
-                    inputMode="numeric"
-                    aria-label={`${item.name} quantity`}
-                    value={quantities[item.name]}
-                    onChange={(event) => setQuantity(item.name, Number(event.target.value))}
-                  />
-                  <button
-                    type="button"
-                    aria-label={`Add one ${item.name}`}
-                    onClick={() => setQuantity(item.name, quantities[item.name] + 1)}
-                  >
-                    +
-                  </button>
+                  <button type="button" aria-label={`Remove one ${item.name}`} onClick={() => setQuantity(item.name, quantities[item.name] - 1)}>−</button>
+                  <input type="number" min="0" max="999" inputMode="numeric" aria-label={`${item.name} quantity`} value={quantities[item.name]} onChange={(event) => setQuantity(item.name, Number(event.target.value))} />
+                  <button type="button" aria-label={`Add one ${item.name}`} onClick={() => setQuantity(item.name, quantities[item.name] + 1)}>+</button>
                 </div>
               </div>
             </article>
@@ -195,9 +188,7 @@ export function OrderForm() {
         </div>
 
         {!meetsMinimum && totalQuantity > 0 && (
-          <p className={styles.minimumError}>
-            Add {BUSINESS_DETAILS.minimumOrder - totalQuantity} more dessert{BUSINESS_DETAILS.minimumOrder - totalQuantity === 1 ? '' : 's'} to reach the minimum.
-          </p>
+          <p className={styles.minimumError}>Add {BUSINESS_DETAILS.minimumOrder - totalQuantity} more dessert{BUSINESS_DETAILS.minimumOrder - totalQuantity === 1 ? '' : 's'} to reach the minimum.</p>
         )}
       </section>
 
@@ -216,10 +207,7 @@ export function OrderForm() {
           ) : (
             <ul className={styles.summaryList}>
               {selectedItems.map((item) => (
-                <li key={item.name}>
-                  <span>{item.quantity} × {item.name}</span>
-                  <strong>R{item.quantity * item.price}</strong>
-                </li>
+                <li key={item.name}><span>{item.quantity} × {item.name}</span><strong>R{item.quantity * item.price}</strong></li>
               ))}
             </ul>
           )}
@@ -252,52 +240,28 @@ export function OrderForm() {
         </div>
 
         <div className="form-row">
-          <label>
-            <span>Your name</span>
-            <input name="name" autoComplete="name" required minLength={2} maxLength={80} />
-          </label>
-
-          <label>
-            <span>Phone number</span>
-            <input name="phone" type="tel" inputMode="tel" autoComplete="tel" required maxLength={30} />
-          </label>
+          <label><span>Your name</span><input name="name" autoComplete="name" required minLength={2} maxLength={80} /></label>
+          <label><span>Phone number</span><input name="phone" type="tel" inputMode="tel" autoComplete="tel" required maxLength={30} /></label>
         </div>
 
-        <label>
-          <span>Email address <small>(optional)</small></span>
-          <input name="email" type="email" inputMode="email" autoComplete="email" maxLength={160} />
-        </label>
+        <label><span>Email address <small>(optional)</small></span><input name="email" type="email" inputMode="email" autoComplete="email" maxLength={160} /></label>
 
         <div className="form-row">
           <label>
             <span>Delivery or collection</span>
-            <select
-              name="fulfilment"
-              value={fulfilment}
-              onChange={(event) => setFulfilment(event.target.value as OrderRequest['fulfilment'])}
-            >
+            <select name="fulfilment" value={fulfilment} onChange={(event) => setFulfilment(event.target.value as OrderRequest['fulfilment'])}>
               <option value="delivery">Delivery (R{BUSINESS_DETAILS.deliveryFee})</option>
               <option value="collection">Collection</option>
             </select>
           </label>
-
-          <label>
-            <span>Event date <small>(optional)</small></span>
-            <input name="eventDate" type="date" />
-          </label>
+          <label><span>Event date <small>(optional)</small></span><input name="eventDate" type="date" /></label>
         </div>
 
         {fulfilment === 'delivery' && (
-          <label>
-            <span>Delivery address</span>
-            <textarea name="address" rows={2} required minLength={5} maxLength={300} autoComplete="street-address" />
-          </label>
+          <label><span>Delivery address</span><textarea name="address" rows={2} required minLength={5} maxLength={300} autoComplete="street-address" /></label>
         )}
 
-        <label>
-          <span>Extra notes <small>(optional)</small></span>
-          <textarea name="notes" rows={3} maxLength={600} placeholder="Event details, preferred collection time, or anything Sam should know" />
-        </label>
+        <label><span>Extra notes <small>(optional)</small></span><textarea name="notes" rows={3} maxLength={600} placeholder="Event details, preferred collection time, or anything Sam should know" /></label>
       </section>
 
       <label className="form-consent">
@@ -312,9 +276,7 @@ export function OrderForm() {
       <div className={`form-status ${state}`} role="status" aria-live="polite">
         {message}
         {(state === 'fallback' || state === 'error') && selectedItems.length > 0 && (
-          <a href={whatsappUrl} target="_blank" rel="noreferrer">
-            Send this itemised order on WhatsApp
-          </a>
+          <a href={whatsappUrl} target="_blank" rel="noreferrer">Send this itemised order on WhatsApp</a>
         )}
       </div>
       <p className="form-privacy">Never enter card, PIN or banking information here. Payment details must come directly from Sam after confirmation.</p>
