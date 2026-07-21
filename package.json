@@ -1,0 +1,42 @@
+{
+  "name": "sams-luxe-bites",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "payload": "payload"
+  },
+  "dependencies": {
+    "@ai-sdk/google": "3.0.96",
+    "@ai-sdk/react": "3.0.233",
+    "@payloadcms/db-postgres": "3.86.0",
+    "@payloadcms/next": "3.86.0",
+    "@payloadcms/richtext-lexical": "3.86.0",
+    "ai": "6.0.231",
+    "graphql": "16.14.2",
+    "next": "16.2.6",
+    "payload": "3.86.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "resend": "6.17.2",
+    "sharp": "0.35.3"
+  },
+  "devDependencies": {
+    "@types/node": "26.1.1",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.2.6",
+    "typescript": "5.9.3"
+  },
+  "overrides": {
+    "dompurify": "3.4.12",
+    "postcss": "8.5.21"
+  }
+}
