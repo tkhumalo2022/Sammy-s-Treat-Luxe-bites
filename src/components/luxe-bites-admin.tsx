@@ -64,8 +64,66 @@ type Dashboard = {
 }
 
 type SessionResult = { sessionToken: string; expiresAt: string }
-
 type Tab = 'orders' | 'products' | 'settings'
+
+const DEMO_DASHBOARD: Dashboard = {
+  manager: {
+    id: 'demo-manager',
+    email: 'demo@luxebites.local',
+    name: 'Sam',
+    role: 'manager',
+  },
+  orders: [
+    {
+      id: 'demo-order-1',
+      reference: 'LB-DEMO1001',
+      customerName: 'Ayanda Mthembu',
+      phone: '071 555 0101',
+      email: 'ayanda@example.com',
+      orderDetails: '20 Oreo mousse cups and 20 Lotus Biscoff cups',
+      fulfilment: 'delivery',
+      address: 'Richards Bay, KwaZulu-Natal',
+      eventDate: '2026-07-26',
+      notes: 'Birthday setup. Please confirm delivery time.',
+      status: 'new',
+      source: 'website',
+      createdAt: '2026-07-21T13:45:00.000Z',
+    },
+    {
+      id: 'demo-order-2',
+      reference: 'LB-DEMO1002',
+      customerName: 'Lerato Nkosi',
+      phone: '082 555 0144',
+      email: null,
+      orderDetails: '30 Black Forest dessert cups',
+      fulfilment: 'collection',
+      address: null,
+      eventDate: '2026-07-29',
+      notes: 'School staff function.',
+      status: 'confirmed',
+      source: 'website',
+      createdAt: '2026-07-21T14:20:00.000Z',
+    },
+  ],
+  products: [
+    { id: 'demo-product-1', name: 'Black forest dessert', description: 'Chocolate cake, cream and cherry layers.', price: 20, available: true, featured: true, sortOrder: 1 },
+    { id: 'demo-product-2', name: 'Oreo / chocolate mousse', description: 'Creamy chocolate mousse with Oreo pieces.', price: 25, available: true, featured: true, sortOrder: 2 },
+    { id: 'demo-product-3', name: 'Cheesecake (any)', description: 'Individual cheesecake dessert cups.', price: 25, available: true, featured: false, sortOrder: 3 },
+    { id: 'demo-product-4', name: 'Red velvet pudding', description: 'Soft red velvet pudding with cream.', price: 20, available: true, featured: false, sortOrder: 4 },
+    { id: 'demo-product-5', name: 'Peppermint Crisp', description: 'Peppermint caramel dessert cup.', price: 25, available: true, featured: false, sortOrder: 5 },
+    { id: 'demo-product-6', name: 'Lotus Biscoff', description: 'Biscoff biscuit and caramel cream layers.', price: 30, available: true, featured: true, sortOrder: 6 },
+    { id: 'demo-product-7', name: 'Malva pudding', description: 'Warm-style malva pudding dessert cup.', price: 20, available: true, featured: false, sortOrder: 7 },
+  ],
+  settings: {
+    businessName: 'Sammy’s Sweets | Luxe Bites',
+    tagline: 'Premium flavours. Elegant presentation. Perfect for events.',
+    whatsappNumber: '27832656484',
+    minimumOrder: 10,
+    depositPercentage: 50,
+    deliveryFee: 100,
+    chatbotEnabled: true,
+  },
+}
 
 async function rpc<T>(name: string, payload: Record<string, unknown>): Promise<T> {
   const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
@@ -88,6 +146,7 @@ async function rpc<T>(name: string, payload: Record<string, unknown>): Promise<T
 
 export function LuxeBitesAdmin() {
   const [ready, setReady] = useState(false)
+  const [demoMode, setDemoMode] = useState(false)
   const [inviteToken, setInviteToken] = useState<string | null>(null)
   const [sessionToken, setSessionToken] = useState<string | null>(null)
   const [dashboard, setDashboard] = useState<Dashboard | null>(null)
@@ -98,13 +157,22 @@ export function LuxeBitesAdmin() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
+    const isDemo = params.get('demo') === '1'
+    setDemoMode(isDemo)
     setInviteToken(params.get('invite'))
-    setSessionToken(window.localStorage.getItem(SESSION_KEY))
+
+    if (isDemo) {
+      setDashboard(structuredClone(DEMO_DASHBOARD))
+      setSessionToken(null)
+    } else {
+      setSessionToken(window.localStorage.getItem(SESSION_KEY))
+    }
+
     setReady(true)
   }, [])
 
   useEffect(() => {
-    if (!ready || !sessionToken) return
+    if (!ready || demoMode || !sessionToken) return
     let cancelled = false
     setBusy(true)
     setError('')
@@ -125,9 +193,19 @@ export function LuxeBitesAdmin() {
       })
 
     return () => { cancelled = true }
-  }, [ready, sessionToken])
+  }, [ready, demoMode, sessionToken])
+
+  function demoNotice(text: string) {
+    setError('')
+    setMessage(`${text} Demo mode does not change live data.`)
+  }
 
   async function refresh() {
+    if (demoMode) {
+      setDashboard(structuredClone(DEMO_DASHBOARD))
+      demoNotice('Demo data refreshed.')
+      return
+    }
     if (!sessionToken) return
     const data = await rpc<Dashboard>('get_luxe_bites_dashboard', { p_session_token: sessionToken })
     setDashboard(data)
@@ -186,6 +264,10 @@ export function LuxeBitesAdmin() {
   }
 
   async function logout() {
+    if (demoMode) {
+      window.location.href = '/admin'
+      return
+    }
     if (sessionToken) {
       await rpc('logout_luxe_bites_manager', { p_session_token: sessionToken }).catch(() => undefined)
     }
@@ -196,7 +278,17 @@ export function LuxeBitesAdmin() {
   }
 
   async function changeOrderStatus(orderId: string, status: OrderStatus) {
-    if (!sessionToken || !dashboard) return
+    if (!dashboard) return
+    if (demoMode) {
+      setDashboard({
+        ...dashboard,
+        orders: dashboard.orders.map((order) => order.id === orderId ? { ...order, status } : order),
+      })
+      demoNotice('Order status changed on screen.')
+      return
+    }
+    if (!sessionToken) return
+
     setBusy(true)
     setError('')
     try {
@@ -226,7 +318,12 @@ export function LuxeBitesAdmin() {
   }
 
   async function saveProduct(product: Product) {
+    if (demoMode) {
+      demoNotice(`${product.name} saved on screen.`)
+      return
+    }
     if (!sessionToken) return
+
     setBusy(true)
     setError('')
     try {
@@ -256,7 +353,13 @@ export function LuxeBitesAdmin() {
 
   async function saveSettings(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!sessionToken || !dashboard) return
+    if (!dashboard) return
+    if (demoMode) {
+      demoNotice('Business settings saved on screen.')
+      return
+    }
+    if (!sessionToken) return
+
     const settings = dashboard.settings
     setBusy(true)
     setError('')
@@ -282,7 +385,7 @@ export function LuxeBitesAdmin() {
 
   if (!ready) return <main className={styles.center}><p>Loading…</p></main>
 
-  if (inviteToken && !sessionToken) {
+  if (inviteToken && !sessionToken && !demoMode) {
     return (
       <main className={styles.center}>
         <section className={styles.authCard}>
@@ -300,7 +403,7 @@ export function LuxeBitesAdmin() {
     )
   }
 
-  if (!sessionToken || !dashboard) {
+  if (!demoMode && (!sessionToken || !dashboard)) {
     return (
       <main className={styles.center}>
         <section className={styles.authCard}>
@@ -312,22 +415,29 @@ export function LuxeBitesAdmin() {
             <label>Password<input name="password" type="password" required autoComplete="current-password" /></label>
             <button disabled={busy} type="submit">{busy ? 'Signing in…' : 'Sign in'}</button>
           </form>
+          <button className={styles.secondaryButton} type="button" onClick={() => { window.location.href = '/admin?demo=1' }}>
+            View safe demo
+          </button>
           {error && <p className={styles.error}>{error}</p>}
         </section>
       </main>
     )
   }
 
+  if (!dashboard) return <main className={styles.center}><p>Loading dashboard…</p></main>
+
   return (
     <main className={styles.shell}>
       <header className={styles.header}>
         <div>
-          <p className={styles.eyebrow}>Luxe Bites manager dashboard</p>
+          <p className={styles.eyebrow}>{demoMode ? 'Luxe Bites dashboard demo' : 'Luxe Bites manager dashboard'}</p>
           <h1>Welcome, {dashboard.manager.name}</h1>
           <p>{dashboard.orders.length} order request{dashboard.orders.length === 1 ? '' : 's'} · {dashboard.products.length} products</p>
         </div>
-        <button className={styles.secondaryButton} type="button" onClick={() => void logout()}>Sign out</button>
+        <button className={styles.secondaryButton} type="button" onClick={() => void logout()}>{demoMode ? 'Exit demo' : 'Sign out'}</button>
       </header>
+
+      {demoMode && <p className={styles.success}>Demo mode: explore freely. Nothing here changes the live business data.</p>}
 
       <nav className={styles.tabs} aria-label="Dashboard sections">
         {(['orders', 'products', 'settings'] as Tab[]).map((item) => (
