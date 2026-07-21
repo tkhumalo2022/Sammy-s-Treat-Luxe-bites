@@ -11,7 +11,7 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 15
 
-const MAX_REQUEST_BYTES = 12_000
+const MAX_REQUEST_BYTES = 16_000
 const SUPABASE_URL = 'https://bpynafeivwkvhtgxmnfz.supabase.co'
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_jnLojIpNv0Gqcfu_zfoz1w_WvC9mYXX'
 const consumeOrderLimit = createMemoryRateLimiter({
@@ -34,6 +34,10 @@ function orderEmail(order: OrderRequest, reference: string) {
     ? `<tr><th style="padding:8px 12px;text-align:left;vertical-align:top;color:#6d2c99">${label}</th><td style="padding:8px 12px;white-space:pre-wrap">${escapeHtml(value)}</td></tr>`
     : ''
 
+  const items = order.lineItems
+    .map((item) => `${item.quantity} × ${item.name} — R${item.lineTotal}`)
+    .join('\n')
+
   return `<!doctype html>
 <html><body style="margin:0;background:#f7f2f8;color:#211527;font-family:Arial,sans-serif">
   <div style="max-width:680px;margin:0 auto;padding:32px 18px">
@@ -44,13 +48,17 @@ function orderEmail(order: OrderRequest, reference: string) {
         ${row('Name', order.name)}
         ${row('Phone', order.phone)}
         ${row('Email', order.email)}
-        ${row('Order', order.order)}
+        ${row('Items', items)}
+        ${row('Item count', String(order.itemCount))}
+        ${row('Dessert subtotal', `R${order.subtotal}`)}
+        ${row('Delivery', `R${order.deliveryFee}`)}
+        ${row('Estimated total', `R${order.estimatedTotal}`)}
         ${row('Fulfilment', order.fulfilment)}
         ${row('Address', order.address)}
         ${row('Event date', order.eventDate)}
         ${row('Notes', order.notes)}
       </table>
-      <p style="margin:22px 0 0;color:#6c606f;font-size:12px">This request has been saved in the Luxe Bites CMS. Confirm availability, total price, payment details, and fulfilment directly with the customer.</p>
+      <p style="margin:22px 0 0;color:#6c606f;font-size:12px">This request has been saved in Sam’s private dashboard. Confirm availability, the final total, deposit, payment details, and fulfilment directly with the customer.</p>
     </div>
   </div>
 </body></html>`
@@ -84,11 +92,17 @@ async function saveOrder(order: OrderRequest, reference: string) {
       p_event_date: order.eventDate || null,
       p_notes: order.notes || null,
       p_source: 'website',
+      p_line_items: order.lineItems,
+      p_item_count: order.itemCount,
+      p_subtotal: order.subtotal,
+      p_delivery_fee: order.deliveryFee,
+      p_estimated_total: order.estimatedTotal,
     }),
   })
 
   if (!response.ok) {
-    throw new Error(`Supabase order storage failed with status ${response.status}`)
+    const details = await response.text().catch(() => '')
+    throw new Error(`Supabase order storage failed with status ${response.status}${details ? `: ${details.slice(0, 180)}` : ''}`)
   }
 
   const result = await response.json() as { stored?: boolean }
@@ -176,6 +190,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'The order request is too large.' }, { status: 413, headers })
     }
 
+    console.error('Order request processing failed', error)
     return NextResponse.json({ error: 'The request could not be processed.' }, { status: 400, headers })
   }
 }
