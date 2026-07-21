@@ -1,6 +1,6 @@
 'use client'
 
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
 
 import styles from './luxe-bites-admin.module.css'
 
@@ -18,7 +18,23 @@ const ORDER_STATUSES = [
   'cancelled',
 ] as const
 
+const PAYMENT_STATUSES = [
+  'unpaid',
+  'deposit-pending',
+  'deposit-paid',
+  'paid',
+  'refunded',
+] as const
+
 type OrderStatus = typeof ORDER_STATUSES[number]
+type PaymentStatus = typeof PAYMENT_STATUSES[number]
+
+type OrderLineItem = {
+  name: string
+  quantity: number
+  unitPrice: number
+  lineTotal: number
+}
 
 type Order = {
   id: string
@@ -27,6 +43,16 @@ type Order = {
   phone: string
   email?: string | null
   orderDetails: string
+  lineItems?: OrderLineItem[]
+  itemCount?: number
+  subtotal?: number
+  deliveryFee?: number
+  estimatedTotal?: number
+  confirmedTotal?: number | null
+  depositDue?: number
+  paymentStatus?: PaymentStatus
+  customerContacted?: boolean
+  internalNotes?: string | null
   fulfilment: string
   address?: string | null
   eventDate?: string | null
@@ -34,6 +60,7 @@ type Order = {
   status: OrderStatus
   source: string
   createdAt: string
+  updatedAt?: string
 }
 
 type Product = {
@@ -67,12 +94,7 @@ type SessionResult = { sessionToken: string; expiresAt: string }
 type Tab = 'orders' | 'products' | 'settings'
 
 const DEMO_DASHBOARD: Dashboard = {
-  manager: {
-    id: 'demo-manager',
-    email: 'demo@luxebites.local',
-    name: 'Sam',
-    role: 'manager',
-  },
+  manager: { id: 'demo-manager', email: 'demo@luxebites.local', name: 'Sam', role: 'manager' },
   orders: [
     {
       id: 'demo-order-1',
@@ -80,12 +102,25 @@ const DEMO_DASHBOARD: Dashboard = {
       customerName: 'Ayanda Mthembu',
       phone: '071 555 0101',
       email: 'ayanda@example.com',
-      orderDetails: '20 Oreo mousse cups and 20 Lotus Biscoff cups',
+      orderDetails: '20 × Oreo / chocolate mousse\n20 × Lotus Biscoff',
+      lineItems: [
+        { name: 'Oreo / chocolate mousse', quantity: 20, unitPrice: 25, lineTotal: 500 },
+        { name: 'Lotus Biscoff', quantity: 20, unitPrice: 30, lineTotal: 600 },
+      ],
+      itemCount: 40,
+      subtotal: 1100,
+      deliveryFee: 100,
+      estimatedTotal: 1200,
+      confirmedTotal: 1200,
+      depositDue: 600,
+      paymentStatus: 'deposit-pending',
+      customerContacted: true,
+      internalNotes: 'Confirm delivery between 13:00 and 14:00.',
       fulfilment: 'delivery',
       address: 'Richards Bay, KwaZulu-Natal',
       eventDate: '2026-07-26',
       notes: 'Birthday setup. Please confirm delivery time.',
-      status: 'new',
+      status: 'confirmed',
       source: 'website',
       createdAt: '2026-07-21T13:45:00.000Z',
     },
@@ -95,12 +130,22 @@ const DEMO_DASHBOARD: Dashboard = {
       customerName: 'Lerato Nkosi',
       phone: '082 555 0144',
       email: null,
-      orderDetails: '30 Black Forest dessert cups',
+      orderDetails: '30 × Black forest dessert',
+      lineItems: [{ name: 'Black forest dessert', quantity: 30, unitPrice: 20, lineTotal: 600 }],
+      itemCount: 30,
+      subtotal: 600,
+      deliveryFee: 0,
+      estimatedTotal: 600,
+      confirmedTotal: null,
+      depositDue: 300,
+      paymentStatus: 'unpaid',
+      customerContacted: false,
+      internalNotes: null,
       fulfilment: 'collection',
       address: null,
       eventDate: '2026-07-29',
       notes: 'School staff function.',
-      status: 'confirmed',
+      status: 'new',
       source: 'website',
       createdAt: '2026-07-21T14:20:00.000Z',
     },
@@ -144,6 +189,38 @@ async function rpc<T>(name: string, payload: Record<string, unknown>): Promise<T
   return data as T
 }
 
+function money(value: number | null | undefined) {
+  return `R${Number(value || 0).toLocaleString('en-ZA', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+}
+
+function prettyStatus(value: string) {
+  return value.replaceAll('-', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+
+function dateLabel(value?: string | null) {
+  if (!value) return 'No event date'
+  return new Date(`${value}T12:00:00`).toLocaleDateString('en-ZA', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
+function cleanPhone(value: string) {
+  const digits = value.replace(/\D/g, '')
+  if (digits.startsWith('0')) return `27${digits.slice(1)}`
+  return digits
+}
+
+function orderStatusClass(status: OrderStatus) {
+  if (status === 'new') return styles.statusNew
+  if (status === 'cancelled') return styles.statusCancelled
+  if (status === 'completed') return styles.statusCompleted
+  if (status === 'ready') return styles.statusReady
+  return styles.statusActive
+}
+
 export function LuxeBitesAdmin() {
   const [ready, setReady] = useState(false)
   const [demoMode, setDemoMode] = useState(false)
@@ -152,8 +229,12 @@ export function LuxeBitesAdmin() {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null)
   const [tab, setTab] = useState<Tab>('orders')
   const [busy, setBusy] = useState(false)
+  const [savingOrderId, setSavingOrderId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | OrderStatus>('all')
+  const [paymentFilter, setPaymentFilter] = useState<'all' | PaymentStatus>('all')
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -195,6 +276,39 @@ export function LuxeBitesAdmin() {
     return () => { cancelled = true }
   }, [ready, demoMode, sessionToken])
 
+  const filteredOrders = useMemo(() => {
+    if (!dashboard) return []
+    const query = search.trim().toLowerCase()
+    return dashboard.orders.filter((order) => {
+      const paymentStatus = order.paymentStatus || 'unpaid'
+      const matchesSearch = !query || [
+        order.reference,
+        order.customerName,
+        order.phone,
+        order.email || '',
+        order.orderDetails,
+        order.address || '',
+      ].some((value) => value.toLowerCase().includes(query))
+      const matchesStatus = statusFilter === 'all' || order.status === statusFilter
+      const matchesPayment = paymentFilter === 'all' || paymentStatus === paymentFilter
+      return matchesSearch && matchesStatus && matchesPayment
+    })
+  }, [dashboard, search, statusFilter, paymentFilter])
+
+  const orderMetrics = useMemo(() => {
+    const orders = dashboard?.orders || []
+    const active = orders.filter((order) => !['completed', 'cancelled'].includes(order.status)).length
+    const newOrders = orders.filter((order) => order.status === 'new').length
+    const awaitingDeposit = orders.filter((order) => {
+      const payment = order.paymentStatus || 'unpaid'
+      return !['completed', 'cancelled'].includes(order.status) && ['unpaid', 'deposit-pending'].includes(payment)
+    }).length
+    const bookedValue = orders
+      .filter((order) => !['cancelled'].includes(order.status))
+      .reduce((total, order) => total + Number(order.confirmedTotal ?? order.estimatedTotal ?? 0), 0)
+    return { active, newOrders, awaitingDeposit, bookedValue }
+  }, [dashboard])
+
   function demoNotice(text: string) {
     setError('')
     setMessage(`${text} Demo mode does not change live data.`)
@@ -207,8 +321,16 @@ export function LuxeBitesAdmin() {
       return
     }
     if (!sessionToken) return
-    const data = await rpc<Dashboard>('get_luxe_bites_dashboard', { p_session_token: sessionToken })
-    setDashboard(data)
+    setBusy(true)
+    try {
+      const data = await rpc<Dashboard>('get_luxe_bites_dashboard', { p_session_token: sessionToken })
+      setDashboard(data)
+      setMessage('Dashboard refreshed.')
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not refresh the dashboard.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   function saveSession(result: SessionResult) {
@@ -277,35 +399,42 @@ export function LuxeBitesAdmin() {
     setMessage('')
   }
 
-  async function changeOrderStatus(orderId: string, status: OrderStatus) {
+  function updateOrderLocal(id: string, patch: Partial<Order>) {
+    if (!dashboard) return
+    setDashboard({
+      ...dashboard,
+      orders: dashboard.orders.map((order) => order.id === id ? { ...order, ...patch } : order),
+    })
+  }
+
+  async function saveOrder(order: Order) {
     if (!dashboard) return
     if (demoMode) {
-      setDashboard({
-        ...dashboard,
-        orders: dashboard.orders.map((order) => order.id === orderId ? { ...order, status } : order),
-      })
-      demoNotice('Order status changed on screen.')
+      const depositDue = Number(order.confirmedTotal ?? order.estimatedTotal ?? 0) * dashboard.settings.depositPercentage / 100
+      updateOrderLocal(order.id, { depositDue })
+      demoNotice(`${order.reference} saved on screen.`)
       return
     }
     if (!sessionToken) return
 
-    setBusy(true)
+    setSavingOrderId(order.id)
     setError('')
     try {
-      await rpc('update_luxe_bites_order_status', {
+      await rpc('update_luxe_bites_order_management', {
         p_session_token: sessionToken,
-        p_order_id: orderId,
-        p_status: status,
+        p_order_id: order.id,
+        p_status: order.status,
+        p_payment_status: order.paymentStatus || 'unpaid',
+        p_confirmed_total: order.confirmedTotal ?? null,
+        p_customer_contacted: Boolean(order.customerContacted),
+        p_internal_notes: order.internalNotes || '',
       })
-      setDashboard({
-        ...dashboard,
-        orders: dashboard.orders.map((order) => order.id === orderId ? { ...order, status } : order),
-      })
-      setMessage('Order status updated.')
+      setMessage(`${order.reference} saved.`)
+      await refresh()
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Could not update the order.')
+      setError(reason instanceof Error ? reason.message : 'Could not save the order.')
     } finally {
-      setBusy(false)
+      setSavingOrderId(null)
     }
   }
 
@@ -415,9 +544,7 @@ export function LuxeBitesAdmin() {
             <label>Password<input name="password" type="password" required autoComplete="current-password" /></label>
             <button disabled={busy} type="submit">{busy ? 'Signing in…' : 'Sign in'}</button>
           </form>
-          <button className={styles.secondaryButton} type="button" onClick={() => { window.location.href = '/admin?demo=1' }}>
-            View safe demo
-          </button>
+          <button className={styles.secondaryButton} type="button" onClick={() => { window.location.href = '/admin?demo=1' }}>View safe demo</button>
           {error && <p className={styles.error}>{error}</p>}
         </section>
       </main>
@@ -432,9 +559,12 @@ export function LuxeBitesAdmin() {
         <div>
           <p className={styles.eyebrow}>{demoMode ? 'Luxe Bites dashboard demo' : 'Luxe Bites manager dashboard'}</p>
           <h1>Welcome, {dashboard.manager.name}</h1>
-          <p>{dashboard.orders.length} order request{dashboard.orders.length === 1 ? '' : 's'} · {dashboard.products.length} products</p>
+          <p>Review requests, confirm payment and keep every order moving.</p>
         </div>
-        <button className={styles.secondaryButton} type="button" onClick={() => void logout()}>{demoMode ? 'Exit demo' : 'Sign out'}</button>
+        <div className={styles.headerActions}>
+          <a className={styles.storeButton} href="/" target="_blank">View store</a>
+          <button className={styles.secondaryButton} type="button" onClick={() => void logout()}>{demoMode ? 'Exit demo' : 'Sign out'}</button>
+        </div>
       </header>
 
       {demoMode && <p className={styles.success}>Demo mode: explore freely. Nothing here changes the live business data.</p>}
@@ -451,27 +581,125 @@ export function LuxeBitesAdmin() {
 
       {tab === 'orders' && (
         <section className={styles.section}>
-          <div className={styles.sectionHeading}><h2>Orders</h2><button type="button" className={styles.secondaryButton} onClick={() => void refresh()}>Refresh</button></div>
-          {dashboard.orders.length === 0 ? <div className={styles.empty}>No order requests yet.</div> : (
+          <div className={styles.metrics}>
+            <article><span>New requests</span><strong>{orderMetrics.newOrders}</strong></article>
+            <article><span>Active orders</span><strong>{orderMetrics.active}</strong></article>
+            <article><span>Awaiting deposit</span><strong>{orderMetrics.awaitingDeposit}</strong></article>
+            <article><span>Current booked value</span><strong>{money(orderMetrics.bookedValue)}</strong></article>
+          </div>
+
+          <div className={styles.sectionHeading}>
+            <div><h2>Orders</h2><p>{filteredOrders.length} of {dashboard.orders.length} shown</p></div>
+            <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void refresh()}>{busy ? 'Refreshing…' : 'Refresh'}</button>
+          </div>
+
+          <div className={styles.filters}>
+            <label>Search<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name, phone or reference" /></label>
+            <label>Order status
+              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'all' | OrderStatus)}>
+                <option value="all">All statuses</option>
+                {ORDER_STATUSES.map((status) => <option value={status} key={status}>{prettyStatus(status)}</option>)}
+              </select>
+            </label>
+            <label>Payment
+              <select value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value as 'all' | PaymentStatus)}>
+                <option value="all">All payments</option>
+                {PAYMENT_STATUSES.map((status) => <option value={status} key={status}>{prettyStatus(status)}</option>)}
+              </select>
+            </label>
+          </div>
+
+          {filteredOrders.length === 0 ? <div className={styles.empty}>No orders match these filters.</div> : (
             <div className={styles.orderGrid}>
-              {dashboard.orders.map((order) => (
-                <article className={styles.orderCard} key={order.id}>
-                  <div className={styles.orderTop}><strong>{order.reference}</strong><time>{new Date(order.createdAt).toLocaleString()}</time></div>
-                  <h3>{order.customerName}</h3>
-                  <p><a href={`tel:${order.phone}`}>{order.phone}</a>{order.email ? ` · ${order.email}` : ''}</p>
-                  <dl>
-                    <div><dt>Order</dt><dd>{order.orderDetails}</dd></div>
-                    <div><dt>Fulfilment</dt><dd>{order.fulfilment}{order.address ? ` — ${order.address}` : ''}</dd></div>
-                    {order.eventDate && <div><dt>Event date</dt><dd>{order.eventDate}</dd></div>}
-                    {order.notes && <div><dt>Notes</dt><dd>{order.notes}</dd></div>}
-                  </dl>
-                  <label className={styles.statusLabel}>Status
-                    <select value={order.status} disabled={busy} onChange={(event) => void changeOrderStatus(order.id, event.target.value as OrderStatus)}>
-                      {ORDER_STATUSES.map((status) => <option value={status} key={status}>{status.replace('-', ' ')}</option>)}
-                    </select>
-                  </label>
-                </article>
-              ))}
+              {filteredOrders.map((order) => {
+                const lineItems = Array.isArray(order.lineItems) ? order.lineItems : []
+                const paymentStatus = order.paymentStatus || 'unpaid'
+                const whatsappText = encodeURIComponent(`Hi ${order.customerName}, this is Sam from Luxe Bites regarding order ${order.reference}.`)
+                const whatsappUrl = `https://wa.me/${cleanPhone(order.phone)}?text=${whatsappText}`
+                return (
+                  <article className={styles.orderCard} key={order.id}>
+                    <div className={styles.orderTop}>
+                      <div>
+                        <strong>{order.reference}</strong>
+                        <time>{new Date(order.createdAt).toLocaleString('en-ZA')}</time>
+                      </div>
+                      <span className={`${styles.statusBadge} ${orderStatusClass(order.status)}`}>{prettyStatus(order.status)}</span>
+                    </div>
+
+                    <div className={styles.customerRow}>
+                      <div>
+                        <h3>{order.customerName}</h3>
+                        <p>{dateLabel(order.eventDate)} · {prettyStatus(order.fulfilment)}</p>
+                      </div>
+                      <div className={styles.contactActions}>
+                        <a href={`tel:${order.phone}`}>Call</a>
+                        <a href={whatsappUrl} target="_blank" rel="noreferrer">WhatsApp</a>
+                        {order.email && <a href={`mailto:${order.email}?subject=Luxe Bites order ${order.reference}`}>Email</a>}
+                      </div>
+                    </div>
+
+                    <div className={styles.orderItems}>
+                      <div className={styles.blockHeading}><h4>Items</h4><span>{order.itemCount || '—'} desserts</span></div>
+                      {lineItems.length > 0 ? (
+                        <ul>
+                          {lineItems.map((item) => (
+                            <li key={`${order.id}-${item.name}`}>
+                              <span><strong>{item.quantity} ×</strong> {item.name}</span>
+                              <span>{money(item.lineTotal)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : <pre>{order.orderDetails}</pre>}
+                    </div>
+
+                    <div className={styles.financials}>
+                      <div><span>Subtotal</span><strong>{money(order.subtotal)}</strong></div>
+                      <div><span>Delivery</span><strong>{money(order.deliveryFee)}</strong></div>
+                      <div><span>Estimate</span><strong>{money(order.estimatedTotal)}</strong></div>
+                      <div><span>Deposit due</span><strong>{money(order.depositDue)}</strong></div>
+                    </div>
+
+                    <dl className={styles.orderDetails}>
+                      <div><dt>Phone</dt><dd>{order.phone}</dd></div>
+                      {order.email && <div><dt>Email</dt><dd>{order.email}</dd></div>}
+                      {order.address && <div><dt>Address</dt><dd>{order.address}</dd></div>}
+                      {order.notes && <div><dt>Customer notes</dt><dd>{order.notes}</dd></div>}
+                    </dl>
+
+                    <div className={styles.managementPanel}>
+                      <h4>Manage this order</h4>
+                      <div className={styles.inlineFields}>
+                        <label>Order status
+                          <select value={order.status} onChange={(event) => updateOrderLocal(order.id, { status: event.target.value as OrderStatus })}>
+                            {ORDER_STATUSES.map((status) => <option value={status} key={status}>{prettyStatus(status)}</option>)}
+                          </select>
+                        </label>
+                        <label>Payment status
+                          <select value={paymentStatus} onChange={(event) => updateOrderLocal(order.id, { paymentStatus: event.target.value as PaymentStatus })}>
+                            {PAYMENT_STATUSES.map((status) => <option value={status} key={status}>{prettyStatus(status)}</option>)}
+                          </select>
+                        </label>
+                        <label>Confirmed total (R)
+                          <input type="number" min="0" step="0.01" value={order.confirmedTotal ?? ''} placeholder={String(order.estimatedTotal || 0)} onChange={(event) => updateOrderLocal(order.id, { confirmedTotal: event.target.value === '' ? null : Number(event.target.value) })} />
+                        </label>
+                      </div>
+
+                      <label className={styles.checkboxLine}>
+                        <input type="checkbox" checked={Boolean(order.customerContacted)} onChange={(event) => updateOrderLocal(order.id, { customerContacted: event.target.checked })} />
+                        Customer contacted
+                      </label>
+
+                      <label>Private notes for Sam
+                        <textarea rows={3} maxLength={2000} value={order.internalNotes || ''} placeholder="Preparation, delivery time, payment reference…" onChange={(event) => updateOrderLocal(order.id, { internalNotes: event.target.value })} />
+                      </label>
+
+                      <button type="button" disabled={savingOrderId === order.id} onClick={() => void saveOrder(order)}>
+                        {savingOrderId === order.id ? 'Saving…' : 'Save order changes'}
+                      </button>
+                    </div>
+                  </article>
+                )
+              })}
             </div>
           )}
         </section>
@@ -479,15 +707,16 @@ export function LuxeBitesAdmin() {
 
       {tab === 'products' && (
         <section className={styles.section}>
-          <h2>Menu products</h2>
+          <div className={styles.sectionHeading}><div><h2>Menu products</h2><p>Control pricing, descriptions and availability.</p></div></div>
           <div className={styles.productGrid}>
             {dashboard.products.map((product) => (
               <article className={styles.productCard} key={product.id}>
+                <div className={styles.productHeader}><span>Menu position {product.sortOrder}</span><strong>{money(product.price)}</strong></div>
                 <label>Name<input value={product.name} onChange={(event) => updateProductLocal(product.id, { name: event.target.value })} /></label>
-                <label>Description<textarea rows={2} value={product.description || ''} onChange={(event) => updateProductLocal(product.id, { description: event.target.value })} /></label>
+                <label>Description<textarea rows={3} value={product.description || ''} onChange={(event) => updateProductLocal(product.id, { description: event.target.value })} /></label>
                 <div className={styles.inlineFields}>
                   <label>Price (R)<input type="number" min="0" step="0.01" value={product.price} onChange={(event) => updateProductLocal(product.id, { price: Number(event.target.value) })} /></label>
-                  <label>Order<input type="number" value={product.sortOrder} onChange={(event) => updateProductLocal(product.id, { sortOrder: Number(event.target.value) })} /></label>
+                  <label>Display order<input type="number" min="1" value={product.sortOrder} onChange={(event) => updateProductLocal(product.id, { sortOrder: Number(event.target.value) })} /></label>
                 </div>
                 <div className={styles.checks}>
                   <label><input type="checkbox" checked={product.available} onChange={(event) => updateProductLocal(product.id, { available: event.target.checked })} /> Available</label>
@@ -502,7 +731,7 @@ export function LuxeBitesAdmin() {
 
       {tab === 'settings' && (
         <section className={styles.section}>
-          <h2>Business settings</h2>
+          <div className={styles.sectionHeading}><div><h2>Business settings</h2><p>These values control the Luxe Bites ordering rules.</p></div></div>
           <form className={`${styles.form} ${styles.settingsForm}`} onSubmit={saveSettings}>
             <label>Business name<input value={dashboard.settings.businessName} onChange={(event) => updateSettingsLocal({ businessName: event.target.value })} /></label>
             <label>Tagline<input value={dashboard.settings.tagline} onChange={(event) => updateSettingsLocal({ tagline: event.target.value })} /></label>
