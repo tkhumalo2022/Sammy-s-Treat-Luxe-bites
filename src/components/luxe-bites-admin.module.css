@@ -1,0 +1,304 @@
+.center {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: radial-gradient(circle at top, #321244, #12081d 55%);
+}
+
+.authCard {
+  width: min(100%, 520px);
+  padding: 32px;
+  border: 1px solid #5b336b;
+  border-radius: 24px;
+  background: rgba(31, 14, 42, 0.96);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+}
+
+.authCard h1,
+.header h1,
+.section h2 {
+  margin: 0;
+}
+
+.authCard p,
+.header p {
+  color: #cdbfd2;
+  line-height: 1.6;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  color: #f2a7ce !important;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.form {
+  display: grid;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.form label,
+.productCard label,
+.statusLabel {
+  display: grid;
+  gap: 7px;
+  color: #f9f2fb;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.form input,
+.form textarea,
+.form select,
+.productCard input,
+.productCard textarea,
+.statusLabel select {
+  width: 100%;
+  border: 1px solid #674276;
+  border-radius: 12px;
+  background: #160b1e;
+  color: #fff;
+  padding: 12px 13px;
+  font: inherit;
+}
+
+.form input:focus,
+.form textarea:focus,
+.form select:focus,
+.productCard input:focus,
+.productCard textarea:focus,
+.statusLabel select:focus {
+  outline: 2px solid #b95ddd;
+  outline-offset: 2px;
+}
+
+.form button,
+.productCard button,
+.secondaryButton,
+.tabs button {
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 18px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.form button,
+.productCard button {
+  background: linear-gradient(135deg, #a548d0, #d96caf);
+  color: #fff;
+}
+
+.form button:disabled,
+.productCard button:disabled,
+.secondaryButton:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.error,
+.success {
+  margin: 18px 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+}
+
+.error {
+  background: #4b1c2b;
+  color: #ffd3df;
+}
+
+.success {
+  background: #173f32;
+  color: #c9ffe9;
+}
+
+.shell {
+  min-height: 100vh;
+  padding: 34px clamp(18px, 4vw, 56px) 70px;
+  background: #12081d;
+  color: #fffafc;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  max-width: 1280px;
+  margin: 0 auto 28px;
+}
+
+.header h1 {
+  font-size: clamp(2rem, 5vw, 3.6rem);
+  line-height: 1;
+}
+
+.secondaryButton {
+  border: 1px solid #674276;
+  background: #21102d;
+  color: #fff;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  max-width: 1280px;
+  margin: 0 auto 26px;
+}
+
+.tabs button {
+  background: #21102d;
+  color: #d8c9dd;
+}
+
+.tabs .activeTab {
+  background: #9e49c4;
+  color: #fff;
+}
+
+.section {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.orderGrid,
+.productGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+}
+
+.orderCard,
+.productCard,
+.settingsForm,
+.empty {
+  border: 1px solid #4f2c5f;
+  border-radius: 20px;
+  background: #21102d;
+  padding: 20px;
+}
+
+.orderTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #dca5ef;
+}
+
+.orderTop time {
+  color: #aa99b1;
+  font-size: 0.8rem;
+}
+
+.orderCard h3 {
+  margin: 16px 0 6px;
+}
+
+.orderCard p,
+.orderCard dd {
+  color: #d6cadb;
+  line-height: 1.55;
+}
+
+.orderCard a {
+  color: #f2a7ce;
+}
+
+.orderCard dl {
+  display: grid;
+  gap: 13px;
+  margin: 18px 0;
+}
+
+.orderCard dl div {
+  display: grid;
+  gap: 4px;
+}
+
+.orderCard dt {
+  color: #a88bb3;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.orderCard dd {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.productCard {
+  display: grid;
+  gap: 14px;
+}
+
+.inlineFields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+}
+
+.checks,
+.checkboxLine {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+}
+
+.checks label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checks input,
+.checkboxLine input {
+  width: auto;
+}
+
+.settingsForm {
+  max-width: 760px;
+}
+
+.empty {
+  color: #cdbfd2;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .header {
+    flex-direction: column;
+  }
+
+  .header .secondaryButton {
+    width: 100%;
+  }
+
+  .orderTop {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .authCard {
+    padding: 24px;
+  }
+}
