@@ -1,0 +1,5 @@
+[[redirects]]
+  from = "/*"
+  to = "https://sammy-s-treat-luxe-bites.vercel.app/:splat"
+  status = 301
+  force = true
