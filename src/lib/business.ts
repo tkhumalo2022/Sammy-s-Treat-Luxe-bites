@@ -1,13 +1,13 @@
 export const SITE_URL = 'https://sammy-s-treat-luxe-bites.vercel.app'
 
 export const MENU_ITEMS = [
-  { name: 'Black forest dessert', price: 20 },
-  { name: 'Oreo / chocolate mousse', price: 25 },
-  { name: 'Cheesecake (any)', price: 25 },
-  { name: 'Red velvet pudding', price: 20 },
-  { name: 'Peppermint Crisp', price: 25 },
-  { name: 'Lotus Biscoff', price: 30 },
-  { name: 'Malva pudding', price: 20 },
+  { name: 'Black forest dessert', price: 20, image: '/images/image1.jpeg' },
+  { name: 'Oreo / chocolate mousse', price: 25, image: '/images/image2.jpeg' },
+  { name: 'Cheesecake (any)', price: 25, image: '/images/image3.jpeg' },
+  { name: 'Red velvet pudding', price: 20, image: '/images/image4.jpeg' },
+  { name: 'Peppermint Crisp', price: 25, image: '/images/image5.jpeg' },
+  { name: 'Lotus Biscoff', price: 30, image: '/images/image6.jpeg' },
+  { name: 'Malva pudding', price: 20, image: '/images/image7.jpeg' },
 ] as const
 
 export const BUSINESS_DETAILS = {
