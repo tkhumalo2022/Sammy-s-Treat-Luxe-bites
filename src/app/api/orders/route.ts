@@ -1,8 +1,11 @@
 import { createHash } from 'node:crypto'
+import config from '@payload-config'
+import { getPayload } from 'payload'
 import { Resend } from 'resend'
 import { NextResponse } from 'next/server'
 
 import { buildWhatsAppOrderUrl, validateOrderRequest, type OrderRequest } from '@/lib/order'
+import { isPayloadConfigured } from '@/lib/payload-runtime'
 import { createMemoryRateLimiter } from '@/lib/rate-limit'
 import { readJsonBody, RequestBodyTooLargeError } from '@/lib/request-body'
 import { getClientKey, isSameOriginRequest } from '@/lib/request-security'
@@ -48,7 +51,7 @@ function orderEmail(order: OrderRequest, reference: string) {
         ${row('Event date', order.eventDate)}
         ${row('Notes', order.notes)}
       </table>
-      <p style="margin:22px 0 0;color:#6c606f;font-size:12px">This is a request only. Confirm availability, total price, payment details, and fulfilment directly with the customer.</p>
+      <p style="margin:22px 0 0;color:#6c606f;font-size:12px">This request has been saved in the Luxe Bites CMS. Confirm availability, total price, payment details, and fulfilment directly with the customer.</p>
     </div>
   </div>
 </body></html>`
@@ -60,6 +63,38 @@ function responseHeaders(remaining: number) {
     'X-RateLimit-Limit': '5',
     'X-RateLimit-Remaining': String(remaining),
   }
+}
+
+async function saveOrder(order: OrderRequest, reference: string) {
+  const payload = await getPayload({ config })
+  const existing = await payload.find({
+    collection: 'orders',
+    depth: 0,
+    limit: 1,
+    overrideAccess: true,
+    where: { reference: { equals: reference } },
+  })
+
+  if (existing.totalDocs > 0) return
+
+  await payload.create({
+    collection: 'orders',
+    overrideAccess: true,
+    data: {
+      reference,
+      customerName: order.name,
+      phone: order.phone,
+      email: order.email || undefined,
+      orderDetails: order.order,
+      fulfilment: order.fulfilment,
+      address: order.address || undefined,
+      eventDate: order.eventDate ? `${order.eventDate}T00:00:00.000Z` : undefined,
+      notes: order.notes || undefined,
+      source: 'website',
+      status: 'new',
+      total: 0,
+    },
+  })
 }
 
 export async function POST(request: Request) {
@@ -109,30 +144,38 @@ export async function POST(request: Request) {
       .digest('hex')
     const reference = `LB-${fingerprint.slice(0, 10).toUpperCase()}`
     const whatsappUrl = buildWhatsAppOrderUrl(validation.data, reference)
+
+    if (!isPayloadConfigured) {
+      return NextResponse.json({ status: 'fallback', reference, whatsappUrl }, { headers })
+    }
+
+    try {
+      await saveOrder(validation.data, reference)
+    } catch (error) {
+      console.error('Order storage failed', {
+        name: error instanceof Error ? error.name : 'UnknownError',
+      })
+      return NextResponse.json({ status: 'fallback', reference, whatsappUrl }, { headers })
+    }
+
     const notificationEmail = process.env.ORDER_NOTIFICATION_EMAIL?.trim()
+    if (process.env.RESEND_API_KEY && notificationEmail) {
+      const resend = new Resend(process.env.RESEND_API_KEY)
+      const { error } = await resend.emails.send(
+        {
+          from: process.env.ORDER_FROM_EMAIL?.trim() || 'Luxe Bites Orders <onboarding@resend.dev>',
+          to: notificationEmail,
+          replyTo: validation.data.email || undefined,
+          subject: `New Luxe Bites order request ${reference}`,
+          html: orderEmail(validation.data, reference),
+        },
+        { idempotencyKey: `luxe-order-${fingerprint}` },
+      )
 
-    if (!process.env.RESEND_API_KEY || !notificationEmail) {
-      return NextResponse.json({ status: 'fallback', reference, whatsappUrl }, { headers })
+      if (error) console.error('Order notification failed', { code: error.name })
     }
 
-    const resend = new Resend(process.env.RESEND_API_KEY)
-    const { error } = await resend.emails.send(
-      {
-        from: process.env.ORDER_FROM_EMAIL?.trim() || 'Luxe Bites Orders <onboarding@resend.dev>',
-        to: notificationEmail,
-        replyTo: validation.data.email || undefined,
-        subject: `New Luxe Bites order request ${reference}`,
-        html: orderEmail(validation.data, reference),
-      },
-      { idempotencyKey: `luxe-order-${fingerprint}` },
-    )
-
-    if (error) {
-      console.error('Order notification failed', { code: error.name })
-      return NextResponse.json({ status: 'fallback', reference, whatsappUrl }, { headers })
-    }
-
-    return NextResponse.json({ status: 'sent', reference, whatsappUrl }, { headers })
+    return NextResponse.json({ status: 'sent', stored: true, reference, whatsappUrl }, { headers })
   } catch (error) {
     if (error instanceof RequestBodyTooLargeError) {
       return NextResponse.json({ error: 'The order request is too large.' }, { status: 413, headers })
