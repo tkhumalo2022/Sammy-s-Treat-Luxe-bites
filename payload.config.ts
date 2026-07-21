@@ -70,17 +70,21 @@ export default buildConfig({
     },
     {
       slug: 'orders',
-      admin: { useAsTitle: 'customerName', defaultColumns: ['customerName', 'status', 'total', 'createdAt'], group: 'Business' },
-      access: { read: isStaff, create: () => true, update: isStaff, delete: isAdmin },
+      admin: {
+        useAsTitle: 'reference',
+        defaultColumns: ['reference', 'customerName', 'status', 'eventDate', 'createdAt'],
+        group: 'Business',
+      },
+      access: { read: isStaff, create: isStaff, update: isStaff, delete: isAdmin },
       fields: [
+        { name: 'reference', type: 'text', required: true, unique: true, index: true },
         { name: 'customerName', type: 'text', required: true },
         { name: 'phone', type: 'text', required: true },
         { name: 'email', type: 'email' },
+        { name: 'orderDetails', type: 'textarea', required: true },
         {
           name: 'items',
           type: 'array',
-          required: true,
-          minRows: 1,
           fields: [
             { name: 'product', type: 'relationship', relationTo: 'products', required: true },
             { name: 'quantity', type: 'number', required: true, min: 1 },
@@ -89,8 +93,16 @@ export default buildConfig({
         },
         { name: 'fulfilment', type: 'select', required: true, options: ['collection', 'delivery'] },
         { name: 'address', type: 'textarea' },
+        { name: 'eventDate', type: 'date' },
         { name: 'notes', type: 'textarea' },
-        { name: 'total', type: 'number', required: true, min: 0 },
+        { name: 'total', type: 'number', min: 0, defaultValue: 0 },
+        {
+          name: 'source',
+          type: 'select',
+          required: true,
+          defaultValue: 'website',
+          options: ['website', 'chat', 'admin'],
+        },
         {
           name: 'status',
           type: 'select',
@@ -118,7 +130,10 @@ export default buildConfig({
     },
   ],
   secret: process.env.PAYLOAD_SECRET || '',
-  db: postgresAdapter({ pool: { connectionString: process.env.DATABASE_URL || '' } }),
+  db: postgresAdapter({
+    schemaName: 'luxe_bites',
+    pool: { connectionString: process.env.DATABASE_URL || '' },
+  }),
   sharp,
   typescript: { outputFile: path.resolve(dirname, 'src/payload-types.ts') },
 })
