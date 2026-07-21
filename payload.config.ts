@@ -2,13 +2,14 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { postgresAdapter } from '@payloadcms/db-postgres'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
-import { buildConfig, type Access } from 'payload'
+import { buildConfig, type Access, type FieldAccess } from 'payload'
 import sharp from 'sharp'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
 const isAdmin: Access = ({ req: { user } }) => user?.role === 'admin'
+const isAdminField: FieldAccess = ({ req: { user } }) => user?.role === 'admin'
 const isStaff: Access = ({ req: { user } }) => Boolean(user)
 
 export default buildConfig({
@@ -41,7 +42,7 @@ export default buildConfig({
             { label: 'Administrator', value: 'admin' },
             { label: 'Manager', value: 'manager' },
           ],
-          access: { update: isAdmin },
+          access: { update: isAdminField },
         },
       ],
     },

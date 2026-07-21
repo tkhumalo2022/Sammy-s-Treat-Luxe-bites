@@ -1,39 +1,125 @@
-import { openai } from '@ai-sdk/openai'
-import { generateText } from 'ai'
+import { google, type GoogleLanguageModelOptions } from '@ai-sdk/google'
+import {
+  convertToModelMessages,
+  streamText,
+  type UIMessage,
+  validateUIMessages,
+} from 'ai'
 import { NextResponse } from 'next/server'
 
-const MENU = `Black forest dessert R20; Oreo or chocolate mousse R25; cheesecake R25; red velvet pudding R20; peppermint crisp R25; Lotus Biscoff R30; malva pudding R20.`
+import { CHAT_INSTRUCTIONS } from '@/lib/business'
+import { validateChatConversation } from '@/lib/chat-validation'
+import { createMemoryRateLimiter } from '@/lib/rate-limit'
+import { readJsonBody, RequestBodyTooLargeError } from '@/lib/request-body'
+import { getClientKey, isSameOriginRequest } from '@/lib/request-security'
 
-function fallbackAnswer(message: string) {
-  const text = message.toLowerCase()
-  if (text.includes('menu') || text.includes('price') || text.includes('flavour')) return `Our current menu is: ${MENU}`
-  if (text.includes('minimum')) return 'The minimum order is 10 desserts.'
-  if (text.includes('deposit') || text.includes('payment')) return 'A 50% deposit is required to confirm an order. Sam will provide payment details.'
-  if (text.includes('deliver')) return 'Delivery is available for R100, or you can choose collection.'
-  if (text.includes('order')) return 'Tell me the flavours, quantities, date, and whether you need delivery or collection. You can then submit the order form or continue on WhatsApp.'
-  return 'I can help with the menu, prices, minimum order, deposits, delivery, and placing an order.'
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const maxDuration = 30
+
+const MAX_REQUEST_BYTES = 20_000
+const GEMINI_MODEL = 'gemini-3.5-flash'
+const consumeChatLimit = createMemoryRateLimiter({
+  limit: 12,
+  windowMs: 10 * 60 * 1_000,
+})
+
+function rateLimitHeaders(result: ReturnType<typeof consumeChatLimit>) {
+  return {
+    'Cache-Control': 'no-store',
+    'X-RateLimit-Limit': '12',
+    'X-RateLimit-Remaining': String(result.remaining),
+    'X-RateLimit-Reset': String(Math.ceil(result.resetAt / 1_000)),
+  }
+}
+
+export async function GET() {
+  return NextResponse.json(
+    {
+      status: 'ok',
+      configured: Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY),
+      provider: 'google',
+      model: GEMINI_MODEL,
+    },
+    { headers: { 'Cache-Control': 'no-store' } },
+  )
 }
 
 export async function POST(request: Request) {
-  try {
-    const body = await request.json()
-    const message = typeof body?.message === 'string' ? body.message.trim().slice(0, 600) : ''
-    if (!message) return NextResponse.json({ error: 'A message is required.' }, { status: 400 })
+  const rateLimit = consumeChatLimit(getClientKey(request, 'chat'))
+  const headers = rateLimitHeaders(rateLimit)
 
-    if (!process.env.OPENAI_API_KEY) {
-      return NextResponse.json({ answer: fallbackAnswer(message), mode: 'guided' })
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Too many messages. Please wait a few minutes and try again.' },
+      {
+        status: 429,
+        headers: { ...headers, 'Retry-After': String(rateLimit.retryAfterSeconds) },
+      },
+    )
+  }
+
+  if (!isSameOriginRequest(request)) {
+    return NextResponse.json({ error: 'Cross-origin requests are not allowed.' }, { status: 403, headers })
+  }
+
+  if (!request.headers.get('content-type')?.includes('application/json')) {
+    return NextResponse.json({ error: 'JSON is required.' }, { status: 415, headers })
+  }
+
+  const contentLength = Number(request.headers.get('content-length') || 0)
+  if (contentLength > MAX_REQUEST_BYTES) {
+    return NextResponse.json({ error: 'The conversation is too large.' }, { status: 413, headers })
+  }
+
+  if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+    return NextResponse.json({ error: 'The assistant is not configured yet.' }, { status: 503, headers })
+  }
+
+  try {
+    const body = await readJsonBody(request, MAX_REQUEST_BYTES) as { messages?: unknown }
+    const messages = await validateUIMessages<UIMessage>({ messages: body?.messages })
+    const validationError = validateChatConversation(messages)
+
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400, headers })
     }
 
-    const result = await generateText({
-      model: openai('gpt-4.1-mini'),
-      system: `You are the customer assistant for Sammy’s Sweets | Luxe Bites. Be warm, concise, and honest. Use only these confirmed details: ${MENU} Minimum order: 10 desserts. Deposit: 50%. Delivery: R100. Never invent availability, dates, payment details, or discounts. Encourage the customer to submit an order request or contact Sam when confirmation is required.`,
-      prompt: message,
-      maxOutputTokens: 180,
-      temperature: 0.3,
+    const result = streamText({
+      model: google(GEMINI_MODEL),
+      system: CHAT_INSTRUCTIONS,
+      messages: await convertToModelMessages(messages),
+      maxOutputTokens: 280,
+      maxRetries: 0,
+      timeout: { totalMs: 20_000, chunkMs: 10_000 },
+      providerOptions: {
+        google: {
+          thinkingConfig: { thinkingLevel: 'minimal', includeThoughts: false },
+          safetySettings: [
+            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_LOW_AND_ABOVE' },
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_LOW_AND_ABOVE' },
+            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_LOW_AND_ABOVE' },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_LOW_AND_ABOVE' },
+          ],
+        } satisfies GoogleLanguageModelOptions,
+      },
     })
 
-    return NextResponse.json({ answer: result.text, mode: 'ai' })
-  } catch {
-    return NextResponse.json({ error: 'Chat is temporarily unavailable.' }, { status: 500 })
+    return result.toUIMessageStreamResponse({
+      headers,
+      onError: () => 'The assistant is temporarily unavailable. Please try again shortly.',
+    })
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return NextResponse.json(
+        { error: 'The conversation is too large.' },
+        { status: 413, headers },
+      )
+    }
+
+    return NextResponse.json(
+      { error: 'The assistant could not process that conversation.' },
+      { status: 400, headers },
+    )
   }
 }
