@@ -17,12 +17,15 @@
 
 .authCard h1,
 .header h1,
-.section h2 {
+.section h2,
+.orderCard h3,
+.orderCard h4 {
   margin: 0;
 }
 
 .authCard p,
-.header p {
+.header p,
+.sectionHeading p {
   color: #cdbfd2;
   line-height: 1.6;
 }
@@ -44,11 +47,12 @@
 
 .form label,
 .productCard label,
-.statusLabel {
+.managementPanel label,
+.filters label {
   display: grid;
   gap: 7px;
   color: #f9f2fb;
-  font-size: 0.9rem;
+  font-size: 0.86rem;
   font-weight: 700;
 }
 
@@ -57,13 +61,18 @@
 .form select,
 .productCard input,
 .productCard textarea,
-.statusLabel select {
+.productCard select,
+.managementPanel input,
+.managementPanel textarea,
+.managementPanel select,
+.filters input,
+.filters select {
   width: 100%;
   border: 1px solid #674276;
   border-radius: 12px;
   background: #160b1e;
   color: #fff;
-  padding: 12px 13px;
+  padding: 11px 12px;
   font: inherit;
 }
 
@@ -72,31 +81,42 @@
 .form select:focus,
 .productCard input:focus,
 .productCard textarea:focus,
-.statusLabel select:focus {
+.productCard select:focus,
+.managementPanel input:focus,
+.managementPanel textarea:focus,
+.managementPanel select:focus,
+.filters input:focus,
+.filters select:focus {
   outline: 2px solid #b95ddd;
   outline-offset: 2px;
 }
 
 .form button,
 .productCard button,
+.managementPanel button,
 .secondaryButton,
-.tabs button {
+.storeButton,
+.tabs button,
+.contactActions a {
   border: 0;
   border-radius: 999px;
-  padding: 12px 18px;
+  padding: 11px 17px;
   font: inherit;
   font-weight: 800;
   cursor: pointer;
+  text-decoration: none;
 }
 
 .form button,
-.productCard button {
+.productCard button,
+.managementPanel button {
   background: linear-gradient(135deg, #a548d0, #d96caf);
   color: #fff;
 }
 
 .form button:disabled,
 .productCard button:disabled,
+.managementPanel button:disabled,
 .secondaryButton:disabled {
   cursor: wait;
   opacity: 0.65;
@@ -104,7 +124,8 @@
 
 .error,
 .success {
-  margin: 18px 0;
+  max-width: 1280px;
+  margin: 18px auto;
   padding: 12px 14px;
   border-radius: 12px;
 }
@@ -122,7 +143,9 @@
 .shell {
   min-height: 100vh;
   padding: 34px clamp(18px, 4vw, 56px) 70px;
-  background: #12081d;
+  background:
+    radial-gradient(circle at 85% 0%, rgba(130, 61, 165, 0.16), transparent 28%),
+    #12081d;
   color: #fffafc;
 }
 
@@ -140,10 +163,25 @@
   line-height: 1;
 }
 
-.secondaryButton {
+.headerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.secondaryButton,
+.storeButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid #674276;
   background: #21102d;
   color: #fff;
+}
+
+.storeButton {
+  border-color: #9e49c4;
+  background: #38164a;
 }
 
 .tabs {
@@ -174,14 +212,66 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  margin: 28px 0 18px;
+}
+
+.sectionHeading p {
+  margin: 4px 0 0;
+  font-size: 0.88rem;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.metrics article {
+  display: grid;
+  gap: 8px;
+  min-height: 112px;
+  align-content: center;
+  border: 1px solid #4f2c5f;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #261132, #1c0d26);
+  padding: 18px;
+}
+
+.metrics span {
+  color: #bca9c3;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.metrics strong {
+  font-size: clamp(1.55rem, 3vw, 2.25rem);
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.5fr) repeat(2, minmax(160px, 0.75fr));
+  gap: 12px;
   margin-bottom: 18px;
+  border: 1px solid #442652;
+  border-radius: 18px;
+  background: #1a0c24;
+  padding: 16px;
 }
 
 .orderGrid,
 .productGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 18px;
+}
+
+.orderGrid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 480px), 1fr));
+}
+
+.productGrid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 
 .orderCard,
@@ -189,65 +279,246 @@
 .settingsForm,
 .empty {
   border: 1px solid #4f2c5f;
-  border-radius: 20px;
+  border-radius: 22px;
   background: #21102d;
   padding: 20px;
 }
 
+.orderCard {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+}
+
 .orderTop {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
-  color: #dca5ef;
+  gap: 12px;
 }
 
-.orderTop time {
-  color: #aa99b1;
-  font-size: 0.8rem;
-}
-
-.orderCard h3 {
-  margin: 16px 0 6px;
-}
-
-.orderCard p,
-.orderCard dd {
-  color: #d6cadb;
-  line-height: 1.55;
-}
-
-.orderCard a {
-  color: #f2a7ce;
-}
-
-.orderCard dl {
-  display: grid;
-  gap: 13px;
-  margin: 18px 0;
-}
-
-.orderCard dl div {
+.orderTop > div {
   display: grid;
   gap: 4px;
 }
 
-.orderCard dt {
-  color: #a88bb3;
-  font-size: 0.76rem;
+.orderTop > div > strong {
+  color: #f1b8e0;
+  letter-spacing: 0.04em;
+}
+
+.orderTop time {
+  color: #aa99b1;
+  font-size: 0.78rem;
+}
+
+.statusBadge {
+  flex: 0 0 auto;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.72rem;
   font-weight: 800;
-  letter-spacing: 0.08em;
+}
+
+.statusNew {
+  border-color: #e89ec8;
+  background: #56233f;
+  color: #ffd5ed;
+}
+
+.statusActive {
+  border-color: #a879c2;
+  background: #3a2250;
+  color: #ecd7fa;
+}
+
+.statusReady {
+  border-color: #77c4e0;
+  background: #173c4b;
+  color: #d3f4ff;
+}
+
+.statusCompleted {
+  border-color: #61c894;
+  background: #173f32;
+  color: #c9ffe9;
+}
+
+.statusCancelled {
+  border-color: #bd6b78;
+  background: #4b1c2b;
+  color: #ffd3df;
+}
+
+.customerRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.customerRow h3 {
+  font-size: 1.28rem;
+}
+
+.customerRow p {
+  margin: 4px 0 0;
+  color: #cdbfd2;
+  font-size: 0.86rem;
+}
+
+.contactActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.contactActions a {
+  border: 1px solid #654174;
+  background: #2e173c;
+  color: #f7eefa;
+  padding: 7px 11px;
+  font-size: 0.74rem;
+}
+
+.orderItems,
+.managementPanel {
+  border: 1px solid #4e315a;
+  border-radius: 17px;
+  background: #180b21;
+  padding: 16px;
+}
+
+.blockHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.blockHeading span {
+  color: #dba6e9;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.orderItems ul {
+  display: grid;
+  gap: 9px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.orderItems li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  padding-bottom: 9px;
+  color: #e8dfea;
+}
+
+.orderItems li:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.orderItems pre {
+  margin: 0;
+  color: #d6cadb;
+  font: inherit;
+  white-space: pre-wrap;
+}
+
+.financials {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.financials div {
+  display: grid;
+  gap: 4px;
+  border-radius: 13px;
+  background: #2b1538;
+  padding: 11px;
+}
+
+.financials span {
+  color: #b6a2bd;
+  font-size: 0.7rem;
+  font-weight: 700;
   text-transform: uppercase;
 }
 
-.orderCard dd {
+.financials strong {
+  color: #fff;
+}
+
+.orderDetails {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
   margin: 0;
+}
+
+.orderDetails div {
+  display: grid;
+  gap: 3px;
+}
+
+.orderDetails dt {
+  color: #a88bb3;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.orderDetails dd {
+  margin: 0;
+  color: #d6cadb;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
+}
+
+.managementPanel {
+  display: grid;
+  gap: 14px;
+  border-color: #70427f;
+  background: #271132;
+}
+
+.managementPanel h4 {
+  color: #f2b4db;
+}
+
+.managementPanel button {
+  justify-self: start;
 }
 
 .productCard {
   display: grid;
   gap: 14px;
+}
+
+.productHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #c8b8ce;
+  font-size: 0.76rem;
+}
+
+.productHeader strong {
+  color: #f2a7ce;
+  font-size: 1.08rem;
 }
 
 .inlineFields {
@@ -261,7 +532,7 @@
   display: flex !important;
   flex-wrap: wrap;
   align-items: center;
-  gap: 18px;
+  gap: 10px !important;
 }
 
 .checks label {
@@ -284,13 +555,52 @@
   text-align: center;
 }
 
+@media (max-width: 900px) {
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .filters {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .filters label:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .financials {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 640px) {
-  .header {
+  .header,
+  .customerRow,
+  .sectionHeading {
     flex-direction: column;
   }
 
-  .header .secondaryButton {
+  .headerActions,
+  .headerActions > *,
+  .header .secondaryButton,
+  .storeButton {
     width: 100%;
+  }
+
+  .metrics,
+  .filters,
+  .financials,
+  .orderDetails {
+    grid-template-columns: 1fr;
+  }
+
+  .filters label:first-child {
+    grid-column: auto;
+  }
+
+  .contactActions {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .orderTop {
@@ -298,7 +608,13 @@
     flex-direction: column;
   }
 
-  .authCard {
-    padding: 24px;
+  .authCard,
+  .orderCard,
+  .productCard {
+    padding: 18px;
+  }
+
+  .managementPanel button {
+    width: 100%;
   }
 }
