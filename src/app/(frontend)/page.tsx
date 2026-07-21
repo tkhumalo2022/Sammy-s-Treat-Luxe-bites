@@ -2,7 +2,8 @@ import Image from 'next/image'
 
 import { ChatWidget } from '@/components/chat-widget'
 import { OrderForm } from '@/components/order-form'
-import { BUSINESS_DETAILS, MENU_ITEMS, SITE_URL } from '@/lib/business'
+import { ProductMenu } from '@/components/product-menu'
+import { BUSINESS_DETAILS, SITE_URL } from '@/lib/business'
 
 const gallery = [
   'image1.jpeg',
@@ -94,7 +95,7 @@ export default function HomePage() {
               <p>{BUSINESS_DETAILS.tagline}</p>
               <div className="hero-actions">
                 <a href="#menu" className="btn-main">View menu</a>
-                <a href="#order" className="btn-secondary">Request an order</a>
+                <a href="#order" className="btn-secondary">Build your order</a>
               </div>
               <div className="hero-facts" aria-label="Order information">
                 <span>From R20</span>
@@ -117,33 +118,13 @@ export default function HomePage() {
         <section id="menu" className="section">
           <div className="container">
             <div className="section-heading">
-              <span className="eyebrow">Choose your favourites</span>
-              <h2>Menu & prices</h2>
+              <span className="eyebrow">See every option</span>
+              <h2>Choose desserts visually</h2>
+              <p style={{ marginTop: 12, maxWidth: 680, color: '#d6cadb' }}>
+                Each dessert now has its own picture, price and direct link into the itemised order builder.
+              </p>
             </div>
-            <div className="menu-grid">
-              <div className="menu-image-wrap">
-                <Image
-                  src="/images/main-picture.jpeg"
-                  alt="Assorted Luxe Bites dessert cups"
-                  fill
-                  sizes="(max-width: 900px) 100vw, 50vw"
-                />
-              </div>
-              <div className="menu-box">
-                {MENU_ITEMS.map((item) => (
-                  <div className="menu-item" key={item.name}>
-                    <span>{item.name}</span>
-                    <strong>R{item.price}</strong>
-                  </div>
-                ))}
-                <div className="menu-rules">
-                  <p><strong>Minimum order:</strong> {BUSINESS_DETAILS.minimumOrder} desserts</p>
-                  <p><strong>Deposit:</strong> {BUSINESS_DETAILS.depositPercentage}% required</p>
-                  <p><strong>Delivery:</strong> R{BUSINESS_DETAILS.deliveryFee}</p>
-                  <p><strong>Payments:</strong> Contact Sam for confirmed details</p>
-                </div>
-              </div>
-            </div>
+            <ProductMenu />
           </div>
         </section>
 
@@ -178,18 +159,18 @@ export default function HomePage() {
             <ol className="process-grid">
               <li>
                 <span>01</span>
-                <h3>Choose your desserts</h3>
-                <p>Select flavours and quantities, starting from {BUSINESS_DETAILS.minimumOrder} desserts.</p>
+                <h3>Build an itemised order</h3>
+                <p>Use the pictures and quantity controls to choose each dessert clearly.</p>
               </li>
               <li>
                 <span>02</span>
-                <h3>Send a request</h3>
-                <p>Use the secure order form or send the prepared request through WhatsApp.</p>
+                <h3>Review the estimate</h3>
+                <p>See quantities, dessert subtotal, delivery estimate and your current total before sending.</p>
               </li>
               <li>
                 <span>03</span>
-                <h3>Confirm with Sam</h3>
-                <p>Sam confirms availability, final pricing, payment details, and fulfilment.</p>
+                <h3>Confirm and pay safely</h3>
+                <p>Sam confirms availability and sends verified details for the {BUSINESS_DETAILS.depositPercentage}% deposit.</p>
               </li>
             </ol>
           </div>
@@ -216,16 +197,16 @@ export default function HomePage() {
           <div className="container order-grid">
             <div className="order-copy">
               <Image src="/images/logo.jpeg" width={92} height={72} alt="Luxe Bites logo" />
-              <span className="eyebrow">Ready when you are</span>
-              <h2>Request your order</h2>
-              <p>Send the flavours, quantities, date, and fulfilment option. Sam will confirm availability and payment details with you.</p>
+              <span className="eyebrow">Visual order builder</span>
+              <h2>Choose, review, then confirm.</h2>
+              <p>Select exact desserts and quantities, review the estimate, and send Sam a clean itemised request. Payment only happens after Sam confirms the order and sends verified details.</p>
               <a
                 className="whatsapp-inline"
                 href={`https://wa.me/${BUSINESS_DETAILS.whatsappNumber}`}
                 target="_blank"
                 rel="noreferrer"
               >
-                Continue on WhatsApp
+                Ask Sam on WhatsApp
               </a>
             </div>
             <OrderForm />
@@ -241,11 +222,15 @@ export default function HomePage() {
             <div className="faq-list">
               <details>
                 <summary>What is the minimum order?</summary>
-                <p>The minimum is {BUSINESS_DETAILS.minimumOrder} desserts.</p>
+                <p>The minimum is {BUSINESS_DETAILS.minimumOrder} desserts. The order builder counts them for you.</p>
               </details>
               <details>
                 <summary>How much is the deposit?</summary>
                 <p>A {BUSINESS_DETAILS.depositPercentage}% deposit is required after Sam confirms the order details.</p>
+              </details>
+              <details>
+                <summary>How do I pay?</summary>
+                <p>Send the request first. Sam confirms the final total and then sends verified payment details. Never enter banking or card details into the website form.</p>
               </details>
               <details>
                 <summary>Do you deliver?</summary>
@@ -268,7 +253,7 @@ export default function HomePage() {
           </div>
           <div className="footer-links">
             <a href="#menu">Menu</a>
-            <a href="#order">Order request</a>
+            <a href="#order">Build an order</a>
             <a href={`https://wa.me/${BUSINESS_DETAILS.whatsappNumber}`} target="_blank" rel="noreferrer">WhatsApp</a>
           </div>
         </div>
