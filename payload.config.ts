@@ -37,7 +37,7 @@ export default buildConfig({
           name: 'role',
           type: 'select',
           required: true,
-          defaultValue: 'manager',
+          defaultValue: 'admin',
           options: [
             { label: 'Administrator', value: 'admin' },
             { label: 'Manager', value: 'manager' },
