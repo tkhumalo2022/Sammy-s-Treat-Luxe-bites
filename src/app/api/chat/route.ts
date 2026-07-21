@@ -1,4 +1,4 @@
-import { google, type GoogleLanguageModelOptions } from '@ai-sdk/google'
+import { createGoogleGenerativeAI, type GoogleLanguageModelOptions } from '@ai-sdk/google'
 import {
   convertToModelMessages,
   streamText,
@@ -18,10 +18,98 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 30
 
 const MAX_REQUEST_BYTES = 20_000
-const GEMINI_MODEL = 'gemini-3.5-flash'
+const GEMINI_PRIMARY_MODEL = 'gemini-3.5-flash'
+const GEMINI_FALLBACK_MODEL = 'gemini-3.1-flash-lite'
+const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504])
 const consumeChatLimit = createMemoryRateLimiter({
   limit: 12,
   windowMs: 10 * 60 * 1_000,
+})
+
+type FetchInput = Parameters<typeof fetch>[0]
+type FetchInit = Parameters<typeof fetch>[1]
+
+function requestUrl(input: FetchInput) {
+  if (typeof input === 'string') return input
+  if (input instanceof URL) return input.toString()
+  return input.url
+}
+
+function requestWithModel(input: FetchInput, model: string): FetchInput {
+  const currentUrl = requestUrl(input)
+  const modelPattern = /\/models\/[^/:]+:/
+  const nextUrl = currentUrl.replace(modelPattern, `/models/${model}:`)
+
+  if (input instanceof Request) {
+    return new Request(nextUrl, input.clone())
+  }
+
+  return nextUrl
+}
+
+function fetchAttempt(input: FetchInput, init: FetchInit, model: string) {
+  return fetch(requestWithModel(input, model), init)
+}
+
+function isRetryableResponse(response: Response) {
+  return RETRYABLE_STATUS_CODES.has(response.status)
+}
+
+async function waitBeforeRetry(delayMs: number, signal?: AbortSignal | null) {
+  if (signal?.aborted) {
+    throw signal.reason ?? new DOMException('The request was aborted.', 'AbortError')
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(resolve, delayMs)
+
+    if (!signal) return
+
+    signal.addEventListener('abort', () => {
+      clearTimeout(timeout)
+      reject(signal.reason ?? new DOMException('The request was aborted.', 'AbortError'))
+    }, { once: true })
+  })
+}
+
+async function resilientGeminiFetch(input: FetchInput, init?: FetchInit) {
+  const signal = init?.signal ?? (input instanceof Request ? input.signal : undefined)
+  const attempts = [
+    { model: GEMINI_PRIMARY_MODEL, delayMs: 0 },
+    { model: GEMINI_PRIMARY_MODEL, delayMs: 350 },
+    { model: GEMINI_FALLBACK_MODEL, delayMs: 250 },
+    { model: GEMINI_FALLBACK_MODEL, delayMs: 750 },
+  ] as const
+
+  let lastResponse: Response | undefined
+
+  for (const [index, attempt] of attempts.entries()) {
+    if (attempt.delayMs > 0) {
+      const jitterMs = Math.floor(Math.random() * 120)
+      await waitBeforeRetry(attempt.delayMs + jitterMs, signal)
+    }
+
+    const response = await fetchAttempt(input, init, attempt.model)
+    lastResponse = response
+
+    if (!isRetryableResponse(response) || index === attempts.length - 1) {
+      return response
+    }
+
+    console.warn('Gemini temporarily unavailable; retrying chat request.', {
+      model: attempt.model,
+      status: response.status,
+      nextModel: attempts[index + 1]?.model,
+    })
+
+    await response.body?.cancel().catch(() => undefined)
+  }
+
+  return lastResponse ?? fetchAttempt(input, init, GEMINI_FALLBACK_MODEL)
+}
+
+const google = createGoogleGenerativeAI({
+  fetch: resilientGeminiFetch,
 })
 
 function rateLimitHeaders(result: ReturnType<typeof consumeChatLimit>) {
@@ -39,7 +127,8 @@ export async function GET() {
       status: 'ok',
       configured: Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY),
       provider: 'google',
-      model: GEMINI_MODEL,
+      model: GEMINI_PRIMARY_MODEL,
+      fallbackModel: GEMINI_FALLBACK_MODEL,
     },
     { headers: { 'Cache-Control': 'no-store' } },
   )
@@ -86,12 +175,12 @@ export async function POST(request: Request) {
     }
 
     const result = streamText({
-      model: google(GEMINI_MODEL),
+      model: google(GEMINI_PRIMARY_MODEL),
       system: CHAT_INSTRUCTIONS,
       messages: await convertToModelMessages(messages),
       maxOutputTokens: 280,
       maxRetries: 0,
-      timeout: { totalMs: 20_000, chunkMs: 10_000 },
+      timeout: { totalMs: 24_000, chunkMs: 10_000 },
       providerOptions: {
         google: {
           thinkingConfig: { thinkingLevel: 'minimal', includeThoughts: false },
@@ -107,7 +196,10 @@ export async function POST(request: Request) {
 
     return result.toUIMessageStreamResponse({
       headers,
-      onError: () => 'The assistant is temporarily unavailable. Please try again shortly.',
+      onError: (error) => {
+        console.error('Luxe Bites assistant stream failed after retries.', error)
+        return 'The assistant is temporarily unavailable. Please try again shortly.'
+      },
     })
   } catch (error) {
     if (error instanceof RequestBodyTooLargeError) {
@@ -117,6 +209,7 @@ export async function POST(request: Request) {
       )
     }
 
+    console.error('Luxe Bites assistant request failed.', error)
     return NextResponse.json(
       { error: 'The assistant could not process that conversation.' },
       { status: 400, headers },
