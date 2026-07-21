@@ -33,7 +33,7 @@ function stringValue(input: Record<string, unknown>, field: string) {
 
 function validateLineItems(values: Record<string, unknown>, errors: Record<string, string>) {
   const rawItems = Array.isArray(values.items) ? values.items : []
-  const prices = new Map(MENU_ITEMS.map((item) => [item.name, item.price]))
+  const prices = new Map<string, number>(MENU_ITEMS.map((item) => [item.name, item.price]))
   const quantities = new Map<string, number>()
 
   for (const rawItem of rawItems) {
