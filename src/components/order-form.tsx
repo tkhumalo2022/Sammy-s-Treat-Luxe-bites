@@ -67,7 +67,7 @@ export function OrderForm() {
         form.reset()
         setFulfilment('delivery')
         setState('sent')
-        setMessage(`Request ${result.reference || ''} sent. Sam will confirm the details with you.`)
+        setMessage(`Request ${result.reference || ''} saved securely. Sam will confirm the details with you.`)
       } else {
         setState('fallback')
         setMessage('Your request is ready. Send it to Sam on WhatsApp to finish.')
