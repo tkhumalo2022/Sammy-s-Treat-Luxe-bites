@@ -1,11 +1,8 @@
 import { createHash } from 'node:crypto'
-import config from '@payload-config'
-import { getPayload } from 'payload'
 import { Resend } from 'resend'
 import { NextResponse } from 'next/server'
 
 import { buildWhatsAppOrderUrl, validateOrderRequest, type OrderRequest } from '@/lib/order'
-import { isPayloadConfigured } from '@/lib/payload-runtime'
 import { createMemoryRateLimiter } from '@/lib/rate-limit'
 import { readJsonBody, RequestBodyTooLargeError } from '@/lib/request-body'
 import { getClientKey, isSameOriginRequest } from '@/lib/request-security'
@@ -15,6 +12,8 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 15
 
 const MAX_REQUEST_BYTES = 12_000
+const SUPABASE_URL = 'https://bpynafeivwkvhtgxmnfz.supabase.co'
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_jnLojIpNv0Gqcfu_zfoz1w_WvC9mYXX'
 const consumeOrderLimit = createMemoryRateLimiter({
   limit: 5,
   windowMs: 15 * 60 * 1_000,
@@ -66,35 +65,34 @@ function responseHeaders(remaining: number) {
 }
 
 async function saveOrder(order: OrderRequest, reference: string) {
-  const payload = await getPayload({ config })
-  const existing = await payload.find({
-    collection: 'orders',
-    depth: 0,
-    limit: 1,
-    overrideAccess: true,
-    where: { reference: { equals: reference } },
-  })
-
-  if (existing.totalDocs > 0) return
-
-  await payload.create({
-    collection: 'orders',
-    overrideAccess: true,
-    data: {
-      reference,
-      customerName: order.name,
-      phone: order.phone,
-      email: order.email || undefined,
-      orderDetails: order.order,
-      fulfilment: order.fulfilment,
-      address: order.address || undefined,
-      eventDate: order.eventDate ? `${order.eventDate}T00:00:00.000Z` : undefined,
-      notes: order.notes || undefined,
-      source: 'website',
-      status: 'new',
-      total: 0,
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/submit_luxe_bites_order`, {
+    method: 'POST',
+    cache: 'no-store',
+    headers: {
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+      Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+      'Content-Type': 'application/json',
     },
+    body: JSON.stringify({
+      p_reference: reference,
+      p_customer_name: order.name,
+      p_phone: order.phone,
+      p_email: order.email || null,
+      p_order_details: order.order,
+      p_fulfilment: order.fulfilment,
+      p_address: order.address || null,
+      p_event_date: order.eventDate || null,
+      p_notes: order.notes || null,
+      p_source: 'website',
+    }),
   })
+
+  if (!response.ok) {
+    throw new Error(`Supabase order storage failed with status ${response.status}`)
+  }
+
+  const result = await response.json() as { stored?: boolean }
+  if (!result.stored) throw new Error('Supabase did not confirm order storage')
 }
 
 export async function POST(request: Request) {
@@ -145,15 +143,12 @@ export async function POST(request: Request) {
     const reference = `LB-${fingerprint.slice(0, 10).toUpperCase()}`
     const whatsappUrl = buildWhatsAppOrderUrl(validation.data, reference)
 
-    if (!isPayloadConfigured) {
-      return NextResponse.json({ status: 'fallback', reference, whatsappUrl }, { headers })
-    }
-
     try {
       await saveOrder(validation.data, reference)
     } catch (error) {
       console.error('Order storage failed', {
         name: error instanceof Error ? error.name : 'UnknownError',
+        message: error instanceof Error ? error.message : 'Unknown failure',
       })
       return NextResponse.json({ status: 'fallback', reference, whatsappUrl }, { headers })
     }
