@@ -17,10 +17,17 @@ type OrderResponse = {
   reference?: string
   whatsappUrl?: string
   error?: string
+  fields?: Record<string, string>
 }
 
 function createEmptyQuantities() {
   return Object.fromEntries(MENU_ITEMS.map((item) => [item.name, 0])) as Quantities
+}
+
+function getLocalDateInputValue() {
+  const now = new Date()
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
+  return local.toISOString().slice(0, 10)
 }
 
 export function OrderForm() {
@@ -29,6 +36,7 @@ export function OrderForm() {
   const [quantities, setQuantities] = useState<Quantities>(createEmptyQuantities)
   const [message, setMessage] = useState('')
   const [whatsappUrl, setWhatsappUrl] = useState(`https://wa.me/${BUSINESS_DETAILS.whatsappNumber}`)
+  const minimumEventDate = useMemo(getLocalDateInputValue, [])
 
   const selectedItems = useMemo(
     () => MENU_ITEMS
@@ -125,7 +133,8 @@ export function OrderForm() {
       const result = await response.json() as OrderResponse
 
       if (!response.ok) {
-        throw new Error(result.error || 'Order request failed')
+        const fieldMessage = result.fields ? Object.values(result.fields)[0] : undefined
+        throw new Error(fieldMessage || result.error || 'Order request failed')
       }
 
       setWhatsappUrl(result.whatsappUrl || fallbackUrl)
@@ -254,7 +263,7 @@ export function OrderForm() {
               <option value="collection">Collection</option>
             </select>
           </label>
-          <label><span>Event date <small>(optional)</small></span><input name="eventDate" type="date" /></label>
+          <label><span>Event date <small>(optional)</small></span><input name="eventDate" type="date" min={minimumEventDate} /></label>
         </div>
 
         {fulfilment === 'delivery' && (
