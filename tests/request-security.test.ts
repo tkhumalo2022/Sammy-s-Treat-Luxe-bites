@@ -23,6 +23,19 @@ test('rejects cross-origin and malformed browser origins', () => {
   assert.equal(isSameOriginRequest(malformed), false)
 })
 
+test('can require an Origin header for browser mutation endpoints', () => {
+  const noOrigin = new Request('https://luxe.example/api/orders', {
+    headers: { host: 'luxe.example' },
+  })
+  const sameOrigin = new Request('https://luxe.example/api/orders', {
+    headers: { host: 'luxe.example', origin: 'https://luxe.example' },
+  })
+
+  assert.equal(isSameOriginRequest(noOrigin), true)
+  assert.equal(isSameOriginRequest(noOrigin, { requireOrigin: true }), false)
+  assert.equal(isSameOriginRequest(sameOrigin, { requireOrigin: true }), true)
+})
+
 test('uses the first forwarded address without exposing it outside the limiter key', () => {
   const request = new Request('https://luxe.example/api/orders', {
     headers: { 'x-forwarded-for': '203.0.113.8, 10.0.0.1' },

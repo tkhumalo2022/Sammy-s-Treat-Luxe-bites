@@ -12,8 +12,8 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 15
 
 const MAX_REQUEST_BYTES = 16_000
-const SUPABASE_URL = 'https://bpynafeivwkvhtgxmnfz.supabase.co'
-const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_jnLojIpNv0Gqcfu_zfoz1w_WvC9mYXX'
+const SUPABASE_URL = (process.env.SUPABASE_URL || 'https://bpynafeivwkvhtgxmnfz.supabase.co').trim()
+const SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY?.trim() || ''
 const consumeOrderLimit = createMemoryRateLimiter({
   limit: 5,
   windowMs: 15 * 60 * 1_000,
@@ -73,12 +73,14 @@ function responseHeaders(remaining: number) {
 }
 
 async function saveOrder(order: OrderRequest, reference: string) {
+  if (!SUPABASE_SECRET_KEY) throw new Error('Server order storage is not configured')
+
   const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/submit_luxe_bites_order`, {
     method: 'POST',
     cache: 'no-store',
     headers: {
-      apikey: SUPABASE_PUBLISHABLE_KEY,
-      Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+      apikey: SUPABASE_SECRET_KEY,
+      Authorization: `Bearer ${SUPABASE_SECRET_KEY}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -120,7 +122,7 @@ export async function POST(request: Request) {
     )
   }
 
-  if (!isSameOriginRequest(request)) {
+  if (!isSameOriginRequest(request, { requireOrigin: true })) {
     return NextResponse.json({ error: 'Cross-origin requests are not allowed.' }, { status: 403, headers })
   }
 

@@ -4,9 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 
 import styles from './luxe-bites-admin.module.css'
 
-const SUPABASE_URL = 'https://bpynafeivwkvhtgxmnfz.supabase.co'
-const SUPABASE_KEY = 'sb_publishable_jnLojIpNv0Gqcfu_zfoz1w_WvC9mYXX'
-const SESSION_KEY = 'luxe-bites-manager-session-v1'
+const MANAGER_API = '/api/manager'
 
 const ORDER_STATUSES = [
   'new',
@@ -90,7 +88,7 @@ type Dashboard = {
   settings: Settings
 }
 
-type SessionResult = { sessionToken: string; expiresAt: string }
+type SessionResponse = { dashboard: Dashboard }
 type Tab = 'orders' | 'products' | 'settings'
 
 const DEMO_DASHBOARD: Dashboard = {
@@ -170,21 +168,21 @@ const DEMO_DASHBOARD: Dashboard = {
   },
 }
 
-async function rpc<T>(name: string, payload: Record<string, unknown>): Promise<T> {
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
-    method: 'POST',
+async function managerRequest<T>(
+  method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
+  payload?: Record<string, unknown>,
+): Promise<T> {
+  const response = await fetch(MANAGER_API, {
+    method,
     cache: 'no-store',
-    headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
+    credentials: 'same-origin',
+    headers: payload ? { 'Content-Type': 'application/json' } : undefined,
+    body: payload ? JSON.stringify(payload) : undefined,
   })
 
-  const data = await response.json().catch(() => null) as { message?: string } | T | null
+  const data = await response.json().catch(() => null) as { error?: string } | T | null
   if (!response.ok) {
-    throw new Error((data && typeof data === 'object' && 'message' in data && data.message) || 'The request failed.')
+    throw new Error((data && typeof data === 'object' && 'error' in data && data.error) || 'The request failed.')
   }
   return data as T
 }
@@ -245,36 +243,31 @@ export function LuxeBitesAdmin() {
     if (isDemo) {
       setDashboard(structuredClone(DEMO_DASHBOARD))
       setSessionToken(null)
-    } else {
-      setSessionToken(window.localStorage.getItem(SESSION_KEY))
+      setReady(true)
+      return
     }
 
-    setReady(true)
-  }, [])
-
-  useEffect(() => {
-    if (!ready || demoMode || !sessionToken) return
     let cancelled = false
     setBusy(true)
-    setError('')
-
-    void rpc<Dashboard>('get_luxe_bites_dashboard', { p_session_token: sessionToken })
+    void managerRequest<Dashboard>('GET')
       .then((data) => {
-        if (!cancelled) setDashboard(data)
-      })
-      .catch((reason: unknown) => {
         if (cancelled) return
-        window.localStorage.removeItem(SESSION_KEY)
-        setSessionToken(null)
+        setDashboard(data)
+        setSessionToken('active')
+      })
+      .catch(() => {
+        if (cancelled) return
         setDashboard(null)
-        setError(reason instanceof Error ? reason.message : 'Your session expired. Please sign in again.')
+        setSessionToken(null)
       })
       .finally(() => {
-        if (!cancelled) setBusy(false)
+        if (cancelled) return
+        setBusy(false)
+        setReady(true)
       })
 
     return () => { cancelled = true }
-  }, [ready, demoMode, sessionToken])
+  }, [])
 
   const filteredOrders = useMemo(() => {
     if (!dashboard) return []
@@ -323,8 +316,9 @@ export function LuxeBitesAdmin() {
     if (!sessionToken) return
     setBusy(true)
     try {
-      const data = await rpc<Dashboard>('get_luxe_bites_dashboard', { p_session_token: sessionToken })
+      const data = await managerRequest<Dashboard>('GET')
       setDashboard(data)
+      setSessionToken('active')
       setMessage('Dashboard refreshed.')
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not refresh the dashboard.')
@@ -333,11 +327,11 @@ export function LuxeBitesAdmin() {
     }
   }
 
-  function saveSession(result: SessionResult) {
-    window.localStorage.setItem(SESSION_KEY, result.sessionToken)
+  function saveSession(result: SessionResponse) {
     window.history.replaceState({}, '', '/admin')
     setInviteToken(null)
-    setSessionToken(result.sessionToken)
+    setSessionToken('active')
+    setDashboard(result.dashboard)
   }
 
   async function activate(event: FormEvent<HTMLFormElement>) {
@@ -354,9 +348,10 @@ export function LuxeBitesAdmin() {
     setBusy(true)
     setError('')
     try {
-      const result = await rpc<SessionResult>('activate_luxe_bites_manager', {
-        p_invite_token: inviteToken,
-        p_password: password,
+      const result = await managerRequest<SessionResponse>('POST', {
+        action: 'activate',
+        inviteToken,
+        password,
       })
       saveSession(result)
     } catch (reason) {
@@ -373,9 +368,10 @@ export function LuxeBitesAdmin() {
     setBusy(true)
     setError('')
     try {
-      const result = await rpc<SessionResult>('login_luxe_bites_manager', {
-        p_email: String(form.get('email') || '').trim(),
-        p_password: String(form.get('password') || ''),
+      const result = await managerRequest<SessionResponse>('POST', {
+        action: 'login',
+        email: String(form.get('email') || '').trim(),
+        password: String(form.get('password') || ''),
       })
       saveSession(result)
     } catch (reason) {
@@ -391,9 +387,8 @@ export function LuxeBitesAdmin() {
       return
     }
     if (sessionToken) {
-      await rpc('logout_luxe_bites_manager', { p_session_token: sessionToken }).catch(() => undefined)
+      await managerRequest('DELETE').catch(() => undefined)
     }
-    window.localStorage.removeItem(SESSION_KEY)
     setSessionToken(null)
     setDashboard(null)
     setMessage('')
@@ -420,14 +415,14 @@ export function LuxeBitesAdmin() {
     setSavingOrderId(order.id)
     setError('')
     try {
-      await rpc('update_luxe_bites_order_management', {
-        p_session_token: sessionToken,
-        p_order_id: order.id,
-        p_status: order.status,
-        p_payment_status: order.paymentStatus || 'unpaid',
-        p_confirmed_total: order.confirmedTotal ?? null,
-        p_customer_contacted: Boolean(order.customerContacted),
-        p_internal_notes: order.internalNotes || '',
+      await managerRequest('PATCH', {
+        action: 'update-order',
+        orderId: order.id,
+        status: order.status,
+        paymentStatus: order.paymentStatus || 'unpaid',
+        confirmedTotal: order.confirmedTotal ?? null,
+        customerContacted: Boolean(order.customerContacted),
+        internalNotes: order.internalNotes || '',
       })
       setMessage(`${order.reference} saved.`)
       await refresh()
@@ -456,15 +451,15 @@ export function LuxeBitesAdmin() {
     setBusy(true)
     setError('')
     try {
-      await rpc('update_luxe_bites_product', {
-        p_session_token: sessionToken,
-        p_product_id: product.id,
-        p_name: product.name,
-        p_description: product.description || '',
-        p_price: Number(product.price),
-        p_available: product.available,
-        p_featured: product.featured,
-        p_sort_order: Number(product.sortOrder),
+      await managerRequest('PATCH', {
+        action: 'update-product',
+        productId: product.id,
+        name: product.name,
+        description: product.description || '',
+        price: Number(product.price),
+        available: product.available,
+        featured: product.featured,
+        sortOrder: Number(product.sortOrder),
       })
       setMessage(`${product.name} saved.`)
       await refresh()
@@ -493,15 +488,15 @@ export function LuxeBitesAdmin() {
     setBusy(true)
     setError('')
     try {
-      await rpc('update_luxe_bites_settings', {
-        p_session_token: sessionToken,
-        p_business_name: settings.businessName,
-        p_tagline: settings.tagline,
-        p_whatsapp_number: settings.whatsappNumber,
-        p_minimum_order: Number(settings.minimumOrder),
-        p_deposit_percentage: Number(settings.depositPercentage),
-        p_delivery_fee: Number(settings.deliveryFee),
-        p_chatbot_enabled: settings.chatbotEnabled,
+      await managerRequest('PATCH', {
+        action: 'update-settings',
+        businessName: settings.businessName,
+        tagline: settings.tagline,
+        whatsappNumber: settings.whatsappNumber,
+        minimumOrder: Number(settings.minimumOrder),
+        depositPercentage: Number(settings.depositPercentage),
+        deliveryFee: Number(settings.deliveryFee),
+        chatbotEnabled: settings.chatbotEnabled,
       })
       setMessage('Business settings saved.')
       await refresh()
