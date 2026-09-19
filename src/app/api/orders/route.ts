@@ -122,7 +122,7 @@ export async function POST(request: Request) {
     )
   }
 
-  if (!isSameOriginRequest(request)) {
+  if (!isSameOriginRequest(request, { requireOrigin: true })) {
     return NextResponse.json({ error: 'Cross-origin requests are not allowed.' }, { status: 403, headers })
   }
 
