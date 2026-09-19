@@ -7,11 +7,14 @@ export function getClientKey(request: Request, namespace: string) {
   return `${namespace}:${ip}`
 }
 
-export function isSameOriginRequest(request: Request) {
+export function isSameOriginRequest(
+  request: Request,
+  { requireOrigin = false }: { requireOrigin?: boolean } = {},
+) {
   const origin = request.headers.get('origin')
   const host = request.headers.get('host')
 
-  if (!origin) return true
+  if (!origin) return !requireOrigin
   if (!host) return false
 
   try {
