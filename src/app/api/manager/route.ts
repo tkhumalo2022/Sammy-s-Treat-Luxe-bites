@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!isSameOriginRequest(request)) {
+  if (!isSameOriginRequest(request, { requireOrigin: true })) {
     return NextResponse.json({ error: 'Cross-origin requests are not allowed.' }, { status: 403, headers: noStoreHeaders() })
   }
 
@@ -192,7 +192,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  if (!isSameOriginRequest(request)) {
+  if (!isSameOriginRequest(request, { requireOrigin: true })) {
     return NextResponse.json({ error: 'Cross-origin requests are not allowed.' }, { status: 403, headers: noStoreHeaders() })
   }
 
@@ -258,7 +258,7 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  if (!isSameOriginRequest(request)) {
+  if (!isSameOriginRequest(request, { requireOrigin: true })) {
     return NextResponse.json({ error: 'Cross-origin requests are not allowed.' }, { status: 403, headers: noStoreHeaders() })
   }
 
