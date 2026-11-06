@@ -618,3 +618,208 @@
     width: 100%;
   }
 }
+
+/* Operations intelligence upgrade — quiet data, decisive hierarchy, mobile-ready charts. */
+.shell {
+  background: #151019;
+}
+.header {
+  align-items: center;
+  padding-bottom: 28px;
+  border-bottom: 1px solid rgba(251, 237, 248, .14);
+}
+.header h1 {
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  letter-spacing: -.055em;
+}
+.tabs {
+  padding: 5px;
+  gap: 5px;
+  width: fit-content;
+  max-width: 100%;
+  border-radius: 14px;
+  background: #241a29;
+  border: 1px solid #49364d;
+}
+.tabs button {
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  font-weight: 700;
+  padding: 12px 19px;
+}
+.tabs .activeTab {
+  background: #e9a6ca;
+  color: #2b1425;
+}
+.overviewHeading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.overviewHeading h2 {
+  margin: 3px 0 5px;
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
+  letter-spacing: -.04em;
+  color: #fff6fc;
+}
+.overviewHeading p:not(.insightEyebrow) { margin: 0; color: #c7b5cb; font-size: .9rem; }
+.insightEyebrow {
+  margin: 0;
+  color: #f0b2d1;
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.dataNote {
+  display: inline-flex;
+  white-space: nowrap;
+  align-items: center;
+  border: 1px solid #826078;
+  border-radius: 100px;
+  padding: 7px 12px;
+  font-size: .66rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  color: #fff1fa;
+  background: #382136;
+}
+.metrics article {
+  min-height: 154px;
+  gap: 11px;
+  align-content: start;
+  border: 1px solid #49354f;
+  border-radius: 14px;
+  background: #211725;
+  padding: 23px;
+}
+.metrics article:first-child { border-top: 3px solid #eeabd0; }
+.metrics article:nth-child(2) { border-top: 3px solid #b7a2e7; }
+.metrics article:nth-child(3) { border-top: 3px solid #eec28c; }
+.metrics article:nth-child(4) { border-top: 3px solid #a5cab8; }
+.metrics span {
+  font-size: .72rem;
+  letter-spacing: .06em;
+  color: #d5c2d6;
+}
+.metrics strong {
+  line-height: 1.05;
+  font-size: clamp(1.8rem, 2.55vw, 2.65rem);
+  letter-spacing: -.055em;
+  font-variant-numeric: tabular-nums;
+}
+.metrics small {
+  color: #b9a9c0;
+  font-size: .75rem;
+  line-height: 1.5;
+}
+.insightGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, .9fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+.insightPanel {
+  background: #211725;
+  border: 1px solid #49354f;
+  border-radius: 16px;
+  padding: clamp(18px, 2.2vw, 28px);
+  min-width: 0;
+}
+.insightPanelHeading {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 23px;
+}
+.insightPanelHeading h3 {
+  color: #fff6fc;
+  font-size: 1.15rem;
+  letter-spacing: -.03em;
+  margin: 5px 0 0;
+}
+.insightPanelHeading > span {
+  color: #c8bbcf;
+  font-size: .8rem;
+  font-variant-numeric: tabular-nums;
+}
+.stageList {
+  display: grid;
+  gap: 5px;
+}
+.stageRow {
+  display: grid;
+  grid-template-columns: minmax(88px, 120px) minmax(0, 1fr) 2ch;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 7px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #f5edf5;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background .16s ease, border-color .16s ease;
+}
+.stageRow:hover { background: #33243a; border-color: #614468; }
+.stageRow:focus-visible { outline: 2px solid #ffb8d8; outline-offset: 2px; }
+.stageName { font-size: .81rem; font-weight: 650; }
+.stageTrack { height: 8px; border-radius: 999px; background: #423148; overflow: hidden; }
+.stageTrack > span {
+  display: block;
+  height: 100%;
+  background: #efafd2;
+  border-radius: inherit;
+}
+.stageRow strong { text-align: right; font-size: .87rem; font-variant-numeric: tabular-nums; }
+.insightHint { margin: 20px 0 0; color: #b8a9c0; font-size: .76rem; line-height: 1.5; }
+.summaryList { display: grid; margin: 0; gap: 0; }
+.summaryList > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(245, 230, 248, .12);
+}
+.summaryList dt { color: #c5b5cb; font-size: .81rem; }
+.summaryList dd {
+  margin: 0;
+  color: #fff8fc;
+  font-size: 1.16rem;
+  font-weight: 800;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.03em;
+}
+@media (max-width: 900px) { .insightGrid { grid-template-columns: 1fr; } }
+@media (max-width: 640px) {
+  .shell { padding: 20px 14px 50px; }
+  .header { align-items: stretch; }
+  .tabs { width: 100%; }
+  .tabs button { flex: 1; padding: 12px 8px; }
+  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metrics article { min-height: 132px; padding: 15px; }
+  .metrics strong { font-size: clamp(1.35rem, 5vw, 2rem); overflow-wrap: anywhere; }
+  .stageRow { grid-template-columns: minmax(80px, 105px) minmax(0, 1fr) 2ch; gap: 8px; }
+  .insightPanel { padding: 17px; }
+}
+@media (max-width: 380px) { .metrics { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .stageRow { transition: none; } }
+
+/* Brand artwork is sourced from the current shop, not generated for the dashboard. */
+.authBrand{display:flex;align-items:center;justify-content:flex-start;margin:0 0 22px}
+.authBrand img{width:140px;height:auto;max-height:115px;object-fit:contain;background:#fff9f3;border:1px solid #e4ccd6;border-radius:10px;padding:5px}
+.brandLockup{display:flex;align-items:center;gap:14px;margin:0 0 21px}
+.brandLockup img{width:83px;height:65px;object-fit:contain;flex-shrink:0;background:#fff9f3;border:1px solid #b58a9e;border-radius:8px;padding:3px}
+.brandLockup>span{display:flex;flex-direction:column;gap:4px;min-width:0}
+.brandLockup strong{font-size:11px;letter-spacing:.1em;line-height:1.4;color:#f8d8e7}
+.brandLockup small{font-size:9px;letter-spacing:.17em;color:#bb9fc2}
+@media(max-width:560px){.brandLockup img{width:70px;height:57px}.brandLockup strong{font-size:10px}.brandLockup{gap:10px;margin-bottom:17px}.authBrand img{width:118px}}

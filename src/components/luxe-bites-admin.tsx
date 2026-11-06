@@ -1,6 +1,9 @@
 'use client'
 
 import { FormEvent, useEffect, useMemo, useState } from 'react'
+import Image from 'next/image'
+
+import { summarizeOrderDashboard } from '../lib/admin-order-insights'
 
 import styles from './luxe-bites-admin.module.css'
 
@@ -237,27 +240,30 @@ export function LuxeBitesAdmin() {
   const [paymentFilter, setPaymentFilter] = useState<'all' | PaymentStatus>('all')
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const isDemo = params.get('demo') === '1'
-    setDemoMode(isDemo)
-    setInviteToken(params.get('invite'))
-
-    if (isDemo) {
-      setDashboard(structuredClone(DEMO_DASHBOARD))
-      setSessionToken(null)
-    } else {
-      setSessionToken(window.localStorage.getItem(SESSION_KEY))
-    }
-
-    setReady(true)
+    // Read browser-only session data after hydration, without cascading sync renders.
+    let active = true
+    void Promise.resolve().then(() => {
+      if (!active) return
+      const params = new URLSearchParams(window.location.search)
+      const isDemo = params.get('demo') === '1'
+      setDemoMode(isDemo)
+      setInviteToken(params.get('invite'))
+      if (isDemo) {
+        setDashboard(structuredClone(DEMO_DASHBOARD))
+        setSessionToken(null)
+      } else {
+        setSessionToken(window.localStorage.getItem(SESSION_KEY))
+      }
+      setReady(true)
+    })
+    return () => { active = false }
   }, [])
 
   useEffect(() => {
     if (!ready || demoMode || !sessionToken) return
     let cancelled = false
-    setBusy(true)
-    setError('')
-
+    // While the first authenticated snapshot loads, the admin renders its
+    // loading state; no mutable controls are available yet.
     void rpc<Dashboard>('get_luxe_bites_dashboard', { p_session_token: sessionToken })
       .then((data) => {
         if (!cancelled) setDashboard(data)
@@ -295,19 +301,17 @@ export function LuxeBitesAdmin() {
     })
   }, [dashboard, search, statusFilter, paymentFilter])
 
-  const orderMetrics = useMemo(() => {
-    const orders = dashboard?.orders || []
-    const active = orders.filter((order) => !['completed', 'cancelled'].includes(order.status)).length
-    const newOrders = orders.filter((order) => order.status === 'new').length
-    const awaitingDeposit = orders.filter((order) => {
-      const payment = order.paymentStatus || 'unpaid'
-      return !['completed', 'cancelled'].includes(order.status) && ['unpaid', 'deposit-pending'].includes(payment)
-    }).length
-    const bookedValue = orders
-      .filter((order) => !['cancelled'].includes(order.status))
-      .reduce((total, order) => total + Number(order.confirmedTotal ?? order.estimatedTotal ?? 0), 0)
-    return { active, newOrders, awaitingDeposit, bookedValue }
-  }, [dashboard])
+  const orderInsights = useMemo(
+    () => summarizeOrderDashboard(dashboard?.orders || []),
+    [dashboard],
+  )
+  const orderMetrics = orderInsights.metrics
+  const orderStages = orderInsights.stages
+  const operationsSummary = {
+    total: orderInsights.total,
+    averageRequest: orderInsights.averageRequest,
+    availableProducts: (dashboard?.products || []).filter(product => product.available).length,
+  }
 
   function demoNotice(text: string) {
     setError('')
@@ -536,6 +540,9 @@ export function LuxeBitesAdmin() {
     return (
       <main className={styles.center}>
         <section className={styles.authCard}>
+          <div className={styles.authBrand}>
+            <Image src="/images/logo.png" alt="Sammy’s Sweets · Luxe Bites brand artwork" width={140} height={110} unoptimized />
+          </div>
           <p className={styles.eyebrow}>Sammy’s Sweets | Luxe Bites</p>
           <h1>Manager sign in</h1>
           <p>Private access for authorised Luxe Bites managers.</p>
@@ -557,6 +564,10 @@ export function LuxeBitesAdmin() {
     <main className={styles.shell}>
       <header className={styles.header}>
         <div>
+          <div className={styles.brandLockup}>
+            <Image src="/images/logo.png" alt="" width={83} height={65} unoptimized />
+            <span><strong>SAMMY’S SWEETS · LUXE BITES</strong><small>MANAGER WORKSPACE</small></span>
+          </div>
           <p className={styles.eyebrow}>{demoMode ? 'Luxe Bites dashboard demo' : 'Luxe Bites manager dashboard'}</p>
           <h1>Welcome, {dashboard.manager.name}</h1>
           <p>Review requests, confirm payment and keep every order moving.</p>
@@ -581,11 +592,56 @@ export function LuxeBitesAdmin() {
 
       {tab === 'orders' && (
         <section className={styles.section}>
+          <div className={styles.overviewHeading}>
+            <div>
+              <p className={styles.insightEyebrow}>Operations / order desk</p>
+              <h2>Business at a glance</h2>
+              <p>Figures calculated from {demoMode ? 'sample orders' : 'the orders currently loaded'}.</p>
+            </div>
+            <span className={styles.dataNote}>{demoMode ? 'SAMPLE DATA' : 'LIVE ORDER DATA'}</span>
+          </div>
           <div className={styles.metrics}>
-            <article><span>New requests</span><strong>{orderMetrics.newOrders}</strong></article>
-            <article><span>Active orders</span><strong>{orderMetrics.active}</strong></article>
-            <article><span>Awaiting deposit</span><strong>{orderMetrics.awaitingDeposit}</strong></article>
-            <article><span>Current booked value</span><strong>{money(orderMetrics.bookedValue)}</strong></article>
+            <article><span>New requests</span><strong>{orderMetrics.newOrders}</strong><small>Need a first response</small></article>
+            <article><span>Active orders</span><strong>{orderMetrics.active}</strong><small>Not completed or cancelled</small></article>
+            <article><span>Awaiting deposit</span><strong>{orderMetrics.awaitingDeposit}</strong><small>Payment follow-up required</small></article>
+            <article><span>Order pipeline value</span><strong>{money(orderMetrics.pipelineValue)}</strong><small>Estimated, not money received</small></article>
+          </div>
+          <div className={styles.insightGrid}>
+            <section className={styles.insightPanel} aria-labelledby="order-stage-title">
+              <div className={styles.insightPanelHeading}>
+                <div>
+                  <p className={styles.insightEyebrow}>WORKFLOW</p>
+                  <h3 id="order-stage-title">Orders by stage</h3>
+                </div>
+                <span>{operationsSummary.total} total</span>
+              </div>
+              <div className={styles.stageList}>
+                {orderStages.map((stage) => (
+                  <button key={stage.status} className={styles.stageRow} type="button"
+                    onClick={() => { setStatusFilter(stage.status); setPaymentFilter('all'); setSearch('') }}
+                    aria-label={`Filter orders by ${stage.label}: ${stage.count}`}>
+                    <span className={styles.stageName}>{stage.label}</span>
+                    <span className={styles.stageTrack}><span style={{ width: `${stage.width}%` }} /></span>
+                    <strong>{stage.count}</strong>
+                  </button>
+                ))}
+              </div>
+              <p className={styles.insightHint}>Select any stage to filter the orders below. Cancelled requests are excluded from this chart.</p>
+            </section>
+            <section className={styles.insightPanel} aria-labelledby="operations-title">
+              <div className={styles.insightPanelHeading}>
+                <div>
+                  <p className={styles.insightEyebrow}>SERVICE HEALTH</p>
+                  <h3 id="operations-title">What needs attention</h3>
+                </div>
+              </div>
+              <dl className={styles.summaryList}>
+                <div><dt>Average non-cancelled request</dt><dd>{money(operationsSummary.averageRequest)}</dd></div>
+                <div><dt>Products available</dt><dd>{operationsSummary.availableProducts} / {dashboard.products.length}</dd></div>
+                <div><dt>Deposits to follow up</dt><dd>{orderMetrics.awaitingDeposit}</dd></div>
+              </dl>
+              <p className={styles.insightHint}>Order values include estimates. Do not treat this as revenue received or accounting data.</p>
+            </section>
           </div>
 
           <div className={styles.sectionHeading}>

@@ -21,6 +21,12 @@ const nextConfig = {
   images: {
     remotePatterns: [],
   },
+  // Next 16.2's serverless tracer misses sharp 0.35's dynamically loaded
+  // libvips binary. Include it in every function until the upstream fix is
+  // adopted; otherwise /admin returns HTTP 500 despite a successful build.
+  outputFileTracingIncludes: {
+    '/**': ['./node_modules/@img/sharp-libvips-linux-x64/**/*'],
+  },
   async headers() {
     return [
       {
