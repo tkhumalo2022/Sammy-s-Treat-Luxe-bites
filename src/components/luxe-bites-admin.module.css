@@ -813,3 +813,13 @@
 }
 @media (max-width: 380px) { .metrics { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .stageRow { transition: none; } }
+
+/* Brand artwork is sourced from the current shop, not generated for the dashboard. */
+.authBrand{display:flex;align-items:center;justify-content:flex-start;margin:0 0 22px}
+.authBrand img{width:140px;height:auto;max-height:115px;object-fit:contain;background:#fff9f3;border:1px solid #e4ccd6;border-radius:10px;padding:5px}
+.brandLockup{display:flex;align-items:center;gap:14px;margin:0 0 21px}
+.brandLockup img{width:83px;height:65px;object-fit:contain;flex-shrink:0;background:#fff9f3;border:1px solid #b58a9e;border-radius:8px;padding:3px}
+.brandLockup>span{display:flex;flex-direction:column;gap:4px;min-width:0}
+.brandLockup strong{font-size:11px;letter-spacing:.1em;line-height:1.4;color:#f8d8e7}
+.brandLockup small{font-size:9px;letter-spacing:.17em;color:#bb9fc2}
+@media(max-width:560px){.brandLockup img{width:70px;height:57px}.brandLockup strong{font-size:10px}.brandLockup{gap:10px;margin-bottom:17px}.authBrand img{width:118px}}
