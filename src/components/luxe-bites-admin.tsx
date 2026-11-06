@@ -239,27 +239,30 @@ export function LuxeBitesAdmin() {
   const [paymentFilter, setPaymentFilter] = useState<'all' | PaymentStatus>('all')
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const isDemo = params.get('demo') === '1'
-    setDemoMode(isDemo)
-    setInviteToken(params.get('invite'))
-
-    if (isDemo) {
-      setDashboard(structuredClone(DEMO_DASHBOARD))
-      setSessionToken(null)
-    } else {
-      setSessionToken(window.localStorage.getItem(SESSION_KEY))
-    }
-
-    setReady(true)
+    // Read browser-only session data after hydration, without cascading sync renders.
+    let active = true
+    void Promise.resolve().then(() => {
+      if (!active) return
+      const params = new URLSearchParams(window.location.search)
+      const isDemo = params.get('demo') === '1'
+      setDemoMode(isDemo)
+      setInviteToken(params.get('invite'))
+      if (isDemo) {
+        setDashboard(structuredClone(DEMO_DASHBOARD))
+        setSessionToken(null)
+      } else {
+        setSessionToken(window.localStorage.getItem(SESSION_KEY))
+      }
+      setReady(true)
+    })
+    return () => { active = false }
   }, [])
 
   useEffect(() => {
     if (!ready || demoMode || !sessionToken) return
     let cancelled = false
-    setBusy(true)
-    setError('')
-
+    // While the first authenticated snapshot loads, the admin renders its
+    // loading state; no mutable controls are available yet.
     void rpc<Dashboard>('get_luxe_bites_dashboard', { p_session_token: sessionToken })
       .then((data) => {
         if (!cancelled) setDashboard(data)
