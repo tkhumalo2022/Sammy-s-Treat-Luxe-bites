@@ -1,6 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useMemo, useState } from 'react'
+import Image from 'next/image'
 
 import { summarizeOrderDashboard } from '../lib/admin-order-insights'
 
@@ -539,6 +540,9 @@ export function LuxeBitesAdmin() {
     return (
       <main className={styles.center}>
         <section className={styles.authCard}>
+          <div className={styles.authBrand}>
+            <Image src="/images/logo.png" alt="Sammy’s Sweets · Luxe Bites brand artwork" width={140} height={110} unoptimized />
+          </div>
           <p className={styles.eyebrow}>Sammy’s Sweets | Luxe Bites</p>
           <h1>Manager sign in</h1>
           <p>Private access for authorised Luxe Bites managers.</p>
@@ -560,6 +564,10 @@ export function LuxeBitesAdmin() {
     <main className={styles.shell}>
       <header className={styles.header}>
         <div>
+          <div className={styles.brandLockup}>
+            <Image src="/images/logo.png" alt="" width={83} height={65} unoptimized />
+            <span><strong>SAMMY’S SWEETS · LUXE BITES</strong><small>MANAGER WORKSPACE</small></span>
+          </div>
           <p className={styles.eyebrow}>{demoMode ? 'Luxe Bites dashboard demo' : 'Luxe Bites manager dashboard'}</p>
           <h1>Welcome, {dashboard.manager.name}</h1>
           <p>Review requests, confirm payment and keep every order moving.</p>
