@@ -309,6 +309,40 @@ export function LuxeBitesAdmin() {
     return { active, newOrders, awaitingDeposit, bookedValue }
   }, [dashboard])
 
+  const orderStages = useMemo(() => {
+    const orders = dashboard?.orders || []
+    const stages: { status: OrderStatus; label: string }[] = [
+      { status: 'new', label: 'New' },
+      { status: 'confirmed', label: 'Confirmed' },
+      { status: 'deposit-paid', label: 'Deposit paid' },
+      { status: 'preparing', label: 'Preparing' },
+      { status: 'ready', label: 'Ready' },
+      { status: 'completed', label: 'Completed' },
+    ]
+    const counts = stages.map((stage) => ({
+      ...stage,
+      count: orders.filter((order) => order.status === stage.status).length,
+    }))
+    const peak = Math.max(1, ...counts.map((stage) => stage.count))
+    return counts.map((stage) => ({
+      ...stage,
+      width: stage.count === 0 ? 0 : Math.max(7, Math.round(stage.count / peak * 100)),
+    }))
+  }, [dashboard])
+
+  const operationsSummary = useMemo(() => {
+    const orders = dashboard?.orders || []
+    const valid = orders.filter((order) => order.status !== 'cancelled')
+    const averageRequest = valid.length
+      ? valid.reduce((total, order) => total + Number(order.confirmedTotal ?? order.estimatedTotal ?? 0), 0) / valid.length
+      : 0
+    return {
+      total: orders.length,
+      averageRequest,
+      availableProducts: (dashboard?.products || []).filter((product) => product.available).length,
+    }
+  }, [dashboard])
+
   function demoNotice(text: string) {
     setError('')
     setMessage(`${text} Demo mode does not change live data.`)
@@ -581,11 +615,56 @@ export function LuxeBitesAdmin() {
 
       {tab === 'orders' && (
         <section className={styles.section}>
+          <div className={styles.overviewHeading}>
+            <div>
+              <p className={styles.insightEyebrow}>Operations / order desk</p>
+              <h2>Business at a glance</h2>
+              <p>Figures calculated from {demoMode ? 'sample orders' : 'the orders currently loaded'}.</p>
+            </div>
+            <span className={styles.dataNote}>{demoMode ? 'SAMPLE DATA' : 'LIVE ORDER DATA'}</span>
+          </div>
           <div className={styles.metrics}>
-            <article><span>New requests</span><strong>{orderMetrics.newOrders}</strong></article>
-            <article><span>Active orders</span><strong>{orderMetrics.active}</strong></article>
-            <article><span>Awaiting deposit</span><strong>{orderMetrics.awaitingDeposit}</strong></article>
-            <article><span>Current booked value</span><strong>{money(orderMetrics.bookedValue)}</strong></article>
+            <article><span>New requests</span><strong>{orderMetrics.newOrders}</strong><small>Need a first response</small></article>
+            <article><span>Active orders</span><strong>{orderMetrics.active}</strong><small>Not completed or cancelled</small></article>
+            <article><span>Awaiting deposit</span><strong>{orderMetrics.awaitingDeposit}</strong><small>Payment follow-up required</small></article>
+            <article><span>Order pipeline value</span><strong>{money(orderMetrics.bookedValue)}</strong><small>Estimated, not money received</small></article>
+          </div>
+          <div className={styles.insightGrid}>
+            <section className={styles.insightPanel} aria-labelledby="order-stage-title">
+              <div className={styles.insightPanelHeading}>
+                <div>
+                  <p className={styles.insightEyebrow}>WORKFLOW</p>
+                  <h3 id="order-stage-title">Orders by stage</h3>
+                </div>
+                <span>{operationsSummary.total} total</span>
+              </div>
+              <div className={styles.stageList}>
+                {orderStages.map((stage) => (
+                  <button key={stage.status} className={styles.stageRow} type="button"
+                    onClick={() => { setStatusFilter(stage.status); setPaymentFilter('all'); setSearch('') }}
+                    aria-label={`Filter orders by ${stage.label}: ${stage.count}`}>
+                    <span className={styles.stageName}>{stage.label}</span>
+                    <span className={styles.stageTrack}><span style={{ width: `${stage.width}%` }} /></span>
+                    <strong>{stage.count}</strong>
+                  </button>
+                ))}
+              </div>
+              <p className={styles.insightHint}>Select any stage to filter the orders below. Cancelled requests are excluded from this chart.</p>
+            </section>
+            <section className={styles.insightPanel} aria-labelledby="operations-title">
+              <div className={styles.insightPanelHeading}>
+                <div>
+                  <p className={styles.insightEyebrow}>SERVICE HEALTH</p>
+                  <h3 id="operations-title">What needs attention</h3>
+                </div>
+              </div>
+              <dl className={styles.summaryList}>
+                <div><dt>Average non-cancelled request</dt><dd>{money(operationsSummary.averageRequest)}</dd></div>
+                <div><dt>Products available</dt><dd>{operationsSummary.availableProducts} / {dashboard.products.length}</dd></div>
+                <div><dt>Deposits to follow up</dt><dd>{orderMetrics.awaitingDeposit}</dd></div>
+              </dl>
+              <p className={styles.insightHint}>Order values include estimates. Do not treat this as revenue received or accounting data.</p>
+            </section>
           </div>
 
           <div className={styles.sectionHeading}>
