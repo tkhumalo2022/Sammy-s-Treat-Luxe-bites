@@ -2,6 +2,8 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 
+import { summarizeOrderDashboard } from '../lib/admin-order-insights'
+
 import styles from './luxe-bites-admin.module.css'
 
 const SUPABASE_URL = 'https://bpynafeivwkvhtgxmnfz.supabase.co'
@@ -295,53 +297,17 @@ export function LuxeBitesAdmin() {
     })
   }, [dashboard, search, statusFilter, paymentFilter])
 
-  const orderMetrics = useMemo(() => {
-    const orders = dashboard?.orders || []
-    const active = orders.filter((order) => !['completed', 'cancelled'].includes(order.status)).length
-    const newOrders = orders.filter((order) => order.status === 'new').length
-    const awaitingDeposit = orders.filter((order) => {
-      const payment = order.paymentStatus || 'unpaid'
-      return !['completed', 'cancelled'].includes(order.status) && ['unpaid', 'deposit-pending'].includes(payment)
-    }).length
-    const bookedValue = orders
-      .filter((order) => !['cancelled'].includes(order.status))
-      .reduce((total, order) => total + Number(order.confirmedTotal ?? order.estimatedTotal ?? 0), 0)
-    return { active, newOrders, awaitingDeposit, bookedValue }
-  }, [dashboard])
-
-  const orderStages = useMemo(() => {
-    const orders = dashboard?.orders || []
-    const stages: { status: OrderStatus; label: string }[] = [
-      { status: 'new', label: 'New' },
-      { status: 'confirmed', label: 'Confirmed' },
-      { status: 'deposit-paid', label: 'Deposit paid' },
-      { status: 'preparing', label: 'Preparing' },
-      { status: 'ready', label: 'Ready' },
-      { status: 'completed', label: 'Completed' },
-    ]
-    const counts = stages.map((stage) => ({
-      ...stage,
-      count: orders.filter((order) => order.status === stage.status).length,
-    }))
-    const peak = Math.max(1, ...counts.map((stage) => stage.count))
-    return counts.map((stage) => ({
-      ...stage,
-      width: stage.count === 0 ? 0 : Math.max(7, Math.round(stage.count / peak * 100)),
-    }))
-  }, [dashboard])
-
-  const operationsSummary = useMemo(() => {
-    const orders = dashboard?.orders || []
-    const valid = orders.filter((order) => order.status !== 'cancelled')
-    const averageRequest = valid.length
-      ? valid.reduce((total, order) => total + Number(order.confirmedTotal ?? order.estimatedTotal ?? 0), 0) / valid.length
-      : 0
-    return {
-      total: orders.length,
-      averageRequest,
-      availableProducts: (dashboard?.products || []).filter((product) => product.available).length,
-    }
-  }, [dashboard])
+  const orderInsights = useMemo(
+    () => summarizeOrderDashboard(dashboard?.orders || []),
+    [dashboard],
+  )
+  const orderMetrics = orderInsights.metrics
+  const orderStages = orderInsights.stages
+  const operationsSummary = {
+    total: orderInsights.total,
+    averageRequest: orderInsights.averageRequest,
+    availableProducts: (dashboard?.products || []).filter(product => product.available).length,
+  }
 
   function demoNotice(text: string) {
     setError('')
@@ -627,7 +593,7 @@ export function LuxeBitesAdmin() {
             <article><span>New requests</span><strong>{orderMetrics.newOrders}</strong><small>Need a first response</small></article>
             <article><span>Active orders</span><strong>{orderMetrics.active}</strong><small>Not completed or cancelled</small></article>
             <article><span>Awaiting deposit</span><strong>{orderMetrics.awaitingDeposit}</strong><small>Payment follow-up required</small></article>
-            <article><span>Order pipeline value</span><strong>{money(orderMetrics.bookedValue)}</strong><small>Estimated, not money received</small></article>
+            <article><span>Order pipeline value</span><strong>{money(orderMetrics.pipelineValue)}</strong><small>Estimated, not money received</small></article>
           </div>
           <div className={styles.insightGrid}>
             <section className={styles.insightPanel} aria-labelledby="order-stage-title">
