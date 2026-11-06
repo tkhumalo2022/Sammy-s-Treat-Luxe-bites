@@ -7,5 +7,5 @@ test('serverless output explicitly traces Sharp 0.35 Linux libvips', () => {
   const lock = readFileSync(new URL('../package-lock.json', import.meta.url), 'utf8')
   assert.match(config, /outputFileTracingIncludes/)
   assert.match(config, /sharp-libvips-linux-x64/)
-  assert.match(lock, /node_modules\\/\@img\\/sharp-libvips-linux-x64/)
+  assert.ok(lock.includes('"node_modules/@img/sharp-libvips-linux-x64"'))
 })
