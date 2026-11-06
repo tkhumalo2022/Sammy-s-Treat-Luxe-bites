@@ -36,7 +36,7 @@ export function OrderForm() {
   const [quantities, setQuantities] = useState<Quantities>(createEmptyQuantities)
   const [message, setMessage] = useState('')
   const [whatsappUrl, setWhatsappUrl] = useState(`https://wa.me/${BUSINESS_DETAILS.whatsappNumber}`)
-  const minimumEventDate = useMemo(getLocalDateInputValue, [])
+  const minimumEventDate = useMemo(() => getLocalDateInputValue(), [])
 
   const selectedItems = useMemo(
     () => MENU_ITEMS
